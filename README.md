@@ -161,6 +161,6 @@ python3 -m unittest discover -s tests -v
 ```
 
 MIT licensed. The name describes work held together across tools and sessions.
-Exact-name web/GitHub searches found no matches before creation; PyPI and npm
-returned no package on 2026-10-21. These checks do not establish trademark clearance
+GitHub searches found no prior repository match; PyPI and npm returned no package
+on 2026-10-21. Web searches found no confirmed competing software product. These checks do not establish trademark clearance
 or universal name exclusivity. Neither package registry has been published to.
