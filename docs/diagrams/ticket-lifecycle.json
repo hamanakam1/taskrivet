@@ -117,6 +117,24 @@
       "to": "cancelled",
       "label": "cancel",
       "variant": "security"
+    },
+    {
+      "from": "ready",
+      "to": "running",
+      "label": "start",
+      "labelDy": 55
+    },
+    {
+      "from": "running",
+      "to": "review",
+      "label": "finish",
+      "route": "straight"
+    },
+    {
+      "from": "review",
+      "to": "accepted",
+      "label": "accept",
+      "labelDy": 55
     }
   ],
   "cards": [

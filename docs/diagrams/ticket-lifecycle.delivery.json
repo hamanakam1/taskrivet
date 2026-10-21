@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "artifactId": "f6cd7a9dff7045e4b7fd51e5f279ba49",
+  "artifactId": "90ead92840f445b6bedcee68425ae0c9",
   "artifact": "ticket-lifecycle.html",
-  "sha256": "f5eb950d093cd740dc6ca87b2251e1bfa1d9422d2763f1b472b11df6728a9f8c",
+  "sha256": "b5e3a505374acf0e3bd58521137590118283ca1bc99d21a05c983c2d8d6269e3",
   "specification": "ticket-lifecycle.json",
-  "specificationSha256": "98883d73e527de4979d9b1c7a76c3a71067883524cd47aec17e3984877101ce1",
+  "specificationSha256": "a6966e1541b7a5ec1029f99ed9c14a398ae490d8f8ded4e1f51f52f0a4f838b0",
   "renderer": {
     "version": "2.16.0",
     "pin": "c826e6c3a7abad19c0f3cd1ca57207d54b1ad8de"

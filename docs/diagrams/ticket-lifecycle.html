@@ -5046,6 +5046,9 @@
         <path data-edge-from="review" data-edge-to="ready" data-edge-label="rework with reason" data-edge-key="2" data-composition-points="497,157;497,70;153,70;153,157" d="M 497 157 L 497 80 Q 497 70 487 70 L 163 70 Q 153 70 153 80 L 153 157" class="a-dashed" stroke-width="1.1" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="review" data-edge-to="cancelled" data-edge-label="cancel" data-edge-key="3" data-composition-points="556,188;556,438" d="M 556 188 L 556 438" class="a-security" stroke-width="1.1" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="blocked" data-edge-to="cancelled" data-edge-label="cancel" data-edge-key="4" data-composition-points="465,307;479,307;479,467;493,467" d="M 465 307 L 472 307 Q 479 307 479 314 L 479 460 Q 479 467 486 467 L 493 467" class="a-security" stroke-width="1.1" marker-end="url(#arrowhead-security)"/>
+        <path data-edge-from="ready" data-edge-to="running" data-edge-label="start" data-edge-key="5" data-composition-points="153,157;189,157" d="M 153 157 L 189 157" class="a-default" stroke-width="1.1" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="running" data-edge-to="review" data-edge-label="finish" data-edge-key="6" data-composition-points="307,157;497,157" d="M 307 157 L 497 157" class="a-default" stroke-width="1.1" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="review" data-edge-to="accepted" data-edge-label="accept" data-edge-key="7" data-composition-points="615,157;651,157" d="M 615 157 L 651 157" class="a-default" stroke-width="1.1" marker-end="url(#arrowhead)"/>
 
         <!-- States -->
         <g id="node-ready" data-node-id="ready" data-node-label="Ready" tabindex="0" role="button" aria-label="Focus Ready, objective and scope, Implemented local task states" aria-pressed="false" data-node-kind="start" data-node-sublabel="objective and scope" data-node-tag="recorded" data-node-context="Implemented local task states">
@@ -5145,6 +5148,18 @@
         <g data-detail="context" data-edge-from="blocked" data-edge-to="cancelled" data-edge-label="cancel" data-edge-key="4">
           <rect x="458.3" y="366" width="41.400000000000006" height="16" rx="4" class="c-mask"/>
           <text x="479" y="377" class="t-security" font-size="8" text-anchor="middle">cancel</text>
+        </g>
+        <g data-detail="context" data-edge-from="ready" data-edge-to="running" data-edge-label="start" data-edge-key="5">
+          <rect x="152.75" y="191" width="36.5" height="16" rx="4" class="c-mask"/>
+          <text x="171" y="202" class="t-muted" font-size="8" text-anchor="middle">start</text>
+        </g>
+        <g data-detail="context" data-edge-from="running" data-edge-to="review" data-edge-label="finish" data-edge-key="6">
+          <rect x="381.3" y="136" width="41.400000000000006" height="16" rx="4" class="c-mask"/>
+          <text x="402" y="147" class="t-muted" font-size="8" text-anchor="middle">finish</text>
+        </g>
+        <g data-detail="context" data-edge-from="review" data-edge-to="accepted" data-edge-label="accept" data-edge-key="7">
+          <rect x="612.3" y="191" width="41.400000000000006" height="16" rx="4" class="c-mask"/>
+          <text x="633" y="202" class="t-muted" font-size="8" text-anchor="middle">accept</text>
         </g>
 
         <!-- Legend -->
