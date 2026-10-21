@@ -3,7 +3,7 @@
 Taskrivet Desktop embeds xterm.js terminals backed by node-pty and connects to the
 Python coordination ledger over a narrow Electron IPC bridge. It has task creation,
 task-linked terminal tabs, checkpoints, failure records, review and acceptance,
-context inspection, and an optional read-only Bosun snapshot view.
+context inspection, and a searchable local tool catalog.
 
 ## Run and build
 
@@ -40,7 +40,7 @@ The task's exact scope keys do not restrict filesystem access.
 Closing the window hides it while shells are active. Reopen the app from the Dock or
 Window menu. Quitting with active shells prompts before killing PTYs. Detached child
 processes may remain and must be reconciled independently. Terminals and scrollback
-are not restored after app quit or a crash. A persistent Bosun/tmux backend is proposed.
+are not restored after app quit or a crash. A standalone Taskrivet session service is proposed.
 
 A shell exit does not finish or accept a task. Stop the linked terminal before
 submitting its result for review, accepting, or retrying. Checkpoints and failure
@@ -65,7 +65,7 @@ programs run by the user. Do not paste secrets into recorded context or evidence
 - Real embedded PTY input produced expected output in `/tmp`.
 - Shell input/output remained functional after closing and reopening the window.
 - Quit with an active test shell displayed the confirmation and stopped the app.
-- No live AI provider/TUI compatibility or live Bosun instance was qualified.
+- No live AI provider/TUI compatibility  was qualified.
 
 At initial dependency review, `npm audit --omit=dev` reported no vulnerabilities.
 The build dependency chain had a moderate `sprintf-js` advisory with no patched

@@ -42,8 +42,8 @@ function renderFailures(){
   if(!state.failures.length){list.append(node('p','No failures recorded.','muted'));return;}
   for(const f of state.failures){const row=node('div',undefined,'failure-row');row.append(node('small',`${f.occurrences} occurrence${f.occurrences===1?'':'s'}`),node('strong',f.category),node('p',f.summary),node('code',f.fingerprint));list.append(row);}
 }
-function showView(view){for(const name of ['workspace','failures','bosun']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',bosun:'Bosun connection'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
-for(const view of ['workspace','failures','bosun'])$(view+'-nav').onclick=()=>showView(view);
+function showView(view){for(const name of ['workspace','failures','tools']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
+for(const view of ['workspace','failures','tools'])$(view+'-nav').onclick=()=>showView(view);
 function renderTabs(){
   $('tabs').replaceChildren();for(const t of terms.values()){const b=node('button',`${t.state==='running'?'●':'○'} ${t.task||'Shell'} ${t.ordinal}`, 'tab'+(t.id===activeTerminal?' active':''));b.onclick=()=>activate(t.id);$('tabs').append(b);}
   $('terminal-empty').hidden=terms.size>0;
@@ -74,7 +74,10 @@ api.onData(receive);
 api.onExit(({id,exitCode})=>{const t=terms.get(id);if(!t)return;t.state='exited';t.exitCode=exitCode;t.xterm.writeln(`\r\n[Shell exited with code ${exitCode}. Task acceptance is unchanged.]`);if(activeTerminal===id)activate(id);else renderTabs();refresh();});
 $('add-task').onclick=()=>$('task-dialog').showModal();
 $('task-form').onsubmit=safe(async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));await api.ledger('create',data);selectedTask=data.id;$('task-dialog').close();e.target.reset();await refresh();});
-function openTerminal(){
+let launchTool=null, toolRows=[];
+function openTerminal(tool=null){
+  launchTool=typeof tool==='string'?tool:null;
+  $('launch-tool').textContent=launchTool?`Launch ${launchTool} directly, with no added arguments. Existing account settings apply.`:'Open your login shell.';
   $('cwd').value=home;const select=$('terminal-task');select.replaceChildren(new Option('Unassigned shell',''));
   for(const t of state.tasks.filter(t=>t.status==='ready'))select.add(new Option(t.id,t.id));
   if(task()?.status==='ready')select.value=selectedTask;
@@ -82,7 +85,7 @@ function openTerminal(){
 }
 $('new-terminal').onclick=openTerminal;$('empty-new').onclick=openTerminal;
 $('choose-folder').onclick=safe(async()=>{const folder=await api.chooseDirectory();if(folder)$('cwd').value=folder;});
-$('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{const info=await api.createTerminal({cwd:$('cwd').value,task:$('terminal-task').value||null});$('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();}finally{button.disabled=false;}});
+$('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{const info=await api.createTerminal({cwd:$('cwd').value,task:$('terminal-task').value||null,tool:launchTool});$('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();}finally{button.disabled=false;}});
 $('stop-terminal').onclick=safe(async()=>{if(terminal())await api.stop(activeTerminal);});
 $('remove-terminal').onclick=safe(async()=>{const t=terminal();if(!t)return;await api.remove(t.id);t.xterm.dispose();t.el.remove();terms.delete(t.id);if(terms.size)activate(terms.keys().next().value);else{activeTerminal=null;renderTabs();$('terminal-path').textContent='Choose a folder to begin';$('terminal-state').textContent='NO SHELL RUNNING';$('stop-terminal').disabled=true;$('remove-terminal').disabled=true;renderInspector();}});
 const definitions={checkpoint:['Record checkpoint',['summary','evidence','next','tokens']],fail:['Record failure',['category','summary']],finish:['Submit for review',['evidence']],accept:['Accept result',['reason']],retry:['Retry after reconciliation',['reason']]};
@@ -93,9 +96,19 @@ for(const name of Object.keys(definitions))$(name).onclick=()=>{
 };
 $('action-form').onsubmit=safe(async e=>{e.preventDefault();const data={...Object.fromEntries(new FormData(e.target)),task:action.task,session:action.session};if('tokens'in data)data.tokens=Number(data.tokens);await api.ledger(action.name,data);$('action-dialog').close();await refresh();});
 $('pack').onclick=safe(async()=>{const result=await api.ledger('pack',{task:selectedTask});$('packet').textContent=JSON.stringify(result,null,2);$('packet-dialog').showModal();});
-$('bosun-connect').onclick=safe(async()=>{const result=await api.ledger('bosun',{socket:$('bosun-socket').value});$('bosun-result').textContent=JSON.stringify(result,null,2);});
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
 // Global navigation avoids intercepting ordinary terminal keys.
 document.addEventListener('keydown',e=>{if(e.metaKey&&e.shiftKey&&e.key.toLowerCase()==='t'){e.preventDefault();openTerminal();}});
-(async()=>{try{const initial=await api.bootstrap();home=initial.home;$('bosun-socket').value=home+'/Library/Application Support/dev.yetidevworks.bosun/bosun.sock';for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){error(e);}})();
+(async()=>{try{const initial=await api.bootstrap();home=initial.home;for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){error(e);}})();
 setInterval(()=>{if(!document.hidden)refresh();},15000);
+
+function renderTools(){
+ const query=$('tool-search').value.toLowerCase(),filter=$('tool-filter').value;
+ const rows=toolRows.filter(t=>(t.name+' '+t.id).toLowerCase().includes(query)&&(filter==='all'||filter===t.category||filter==='installed'&&t.installed||filter==='history'&&(t.recent_count+t.undated_count)>0));
+ $('tool-list').replaceChildren();
+ for(const t of rows){const row=node('div',undefined,'tool-row'),info=node('div');info.append(node('strong',t.name),node('small',`${t.id} · ${t.category} · ${t.installed?'executable detected':'not detected'} · recent ${t.recent_count} / undated ${t.undated_count}`));const launch=node('button','Launch…');launch.disabled=!t.installed;launch.onclick=()=>openTerminal(t.id);row.append(info,launch);$('tool-list').append(row);}
+}
+async function loadTools(history=false){const result=await api.ledger('tools',{history});toolRows=result.tools;$('tool-count').textContent=`${result.installed} installed commands · ${result.agent_profiles} coding-agent discovery profiles · account readiness unknown · checked ${new Date().toLocaleTimeString()}`;renderTools();}
+$('tools-refresh').onclick=safe(()=>loadTools());$('tools-history').onclick=safe(()=>loadTools(true));
+$('tool-search').oninput=renderTools;$('tool-filter').onchange=renderTools;
+$('tools-nav').onclick=safe(async()=>{showView('tools');if(!toolRows.length)await loadTools();});

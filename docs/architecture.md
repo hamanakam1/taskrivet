@@ -45,7 +45,7 @@ A ledger cannot prevent a disconnected worker from editing files.
 
 A dashboard adapter will remain separate from the core. One authority owns queue
 admission, budgets, and acceptance. Dashboard restarts should not terminate workers;
-worker crashes should not corrupt dashboard state. The read-only Bosun observer is implemented; no ai-dashboard adapter is installed.
+worker crashes should not corrupt dashboard state. Taskrivet owns its terminal backend; no external daemon or ai-dashboard adapter is installed.
 
 ## Proposed learning and efficiency
 
@@ -63,4 +63,4 @@ budgets. Never let a learning policy relax hard authorization or privacy constra
 
 The Electron desktop and direct PTY implementation are described in
 [desktop.md](desktop.md). They are not the proposed durable execution service.
-The [Bosun review](bosun-integration.md) records the next persistence boundary.
+The [Bosun review](bosun-integration.md) records architectural lessons for our own future session service.

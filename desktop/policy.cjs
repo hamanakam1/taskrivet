@@ -17,7 +17,7 @@ function directory(value) {
 function ledgerArgs(action, data = {}) {
   const t = (key, max) => text(data[key], key, max);
   switch (action) {
-    case 'bosun': return ['bosun-status', '--socket', t('socket', 4096)];
+    case 'tools': return data.history === true ? ['tools', '--history'] : ['tools'];
     case 'status': return ['status'];
     case 'pack': return ['pack', t('task'), '--max-bytes', '12000'];
     case 'create': return ['task-add', t('id', 128), '--objective', t('objective'), '--acceptance', t('acceptance'), '--scope', t('scope')];

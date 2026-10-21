@@ -1,7 +1,7 @@
 # Roadmap
 
 This file describes remaining proposed work. The desktop now has embedded terminal tabs,
-a task inspector, failure records, and a read-only Bosun observer. Durable execution
+a task inspector, failure records, and a local CLI tool catalog. Durable execution
 and automated provider dispatch remain unimplemented.
 
 1. **Qualified adapter contract.** Local fake worker first; versioned work orders,

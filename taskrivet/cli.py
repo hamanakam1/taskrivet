@@ -14,7 +14,7 @@ def parser():
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('init')
     sub.add_parser('status')
-    b = sub.add_parser('bosun-status'); b.add_argument('--socket', required=True)
+    b = sub.add_parser('tools'); b.add_argument('--history', action='store_true')
     e = sub.add_parser('events'); e.add_argument('--after', type=int, default=0)
     a = sub.add_parser('task-add')
     a.add_argument('id'); a.add_argument('--objective', required=True); a.add_argument('--acceptance', required=True)
@@ -43,9 +43,9 @@ def main():
     a = parser().parse_args()
     ledger = None
     try:
-        if a.command == 'bosun-status':
-            from .bosun import snapshot
-            print(json.dumps(snapshot(a.socket), indent=2))
+        if a.command == 'tools':
+            from .tools import inventory
+            print(json.dumps(inventory(a.history), indent=2))
             return
         ledger = Ledger(a.db)
         cmd = a.command

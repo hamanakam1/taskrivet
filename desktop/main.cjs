@@ -52,18 +52,25 @@ function summary(item) {
 function notify(kind, payload) {
   if (win && !win.isDestroyed()) win.webContents.send(kind, payload);
 }
-async function newTerminal({cwd, task = null} = {}) {
+async function newTerminal({cwd, task = null, tool = null} = {}) {
   if (terminals.size >= 12) throw new Error('Limit of 12 terminal tabs reached. Close a stopped tab first.');
   cwd = policy.directory(cwd || os.homedir());
+  let executable = null;
+  if (tool) {
+    policy.text(tool, 'tool', 128);
+    const catalog = await ledger(['tools']);
+    executable = catalog.tools.find(t => t.id === tool && t.installed)?.executable;
+    if (!executable) throw new Error('Tool is no longer installed. Refresh the catalog.');
+  }
   let session = null;
   if (task) {
     policy.text(task, 'task');
     session = (await ledger(['start', task, '--owner', 'desktop-terminal'])).session_id;
   }
   const id = randomUUID();
-  const shell = process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash';
+  const shell = executable || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
   try {
-    const proc = pty.spawn(shell, ['-l'], {name:'xterm-256color', cols:100, rows:30, cwd,
+    const proc = pty.spawn(shell, executable ? [] : ['-l'], {name:'xterm-256color', cols:100, rows:30, cwd,
       env:{...process.env, TERM:'xterm-256color', COLORTERM:'truecolor', TASKRIVET_DB:db}});
     const item = {id, proc, cwd, task, session, shell, state:'running', chunks:[], seq:0, bytes:0, pending:'', paused:false};
     terminals.set(id, item);

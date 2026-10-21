@@ -19,8 +19,7 @@ Measure useful outcomes instead of how many agents are busy.
 
 **Status: v0.2 desktop alpha.** A Mac app with real embedded terminal tabs,
 plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
-inspect bounded context, track recurring failures, and read existing Bosun session
-activity. Terminal commands are controlled by you; automated model dispatch,
+inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
 restart-proof terminals, verified billing, and ai-dashboard integration are future work.
 
 ## Mac desktop app
@@ -37,16 +36,37 @@ has runtime dependencies; the Python coordination core remains standard-library-
 See [desktop setup and lifecycle](docs/desktop.md). Closing a window keeps active
 shells in the app process; quitting the app does not preserve them.
 
-## Bosun integration
+## Standalone tool catalog
 
-[What we learned from Bosun](docs/bosun-integration.md) explains the architecture
-and the implemented read-only adapter. It reads a protocol-v1 snapshot from an
-existing local daemon, preserves hook/detector provenance, and never treats an
-agent turn ending as an accepted task. It does not launch or control Bosun.
+Taskrivet owns its embedded terminal processes and coordination ledger. It does
+not connect to or require Bosun, tmux, or ai-dashboard.
+
+The desktop Tool catalog discovers executable commands from PATH and common local
+installation folders. Search all commands, filter coding-agent profiles, and launch
+an installed command in an embedded terminal with a chosen folder and optional task.
+The catalog is dynamic: it can include hundreds of local tools without bundling
+third-party binaries. It includes 26 coding-agent command-name discovery profiles;
+these are hints, not verified product identities or complete API integrations.
+Any executable discovered in the scanned directories can be launched, including new
+agents without a dedicated profile. Shell aliases/functions remain available in a
+normal login-shell tab. Direct tool launch passes no arguments; use a shell tab when
+you need flags, a wrapper, or shell initialization.
 
 ```sh
-python3 -m taskrivet bosun-status --socket '/path/to/bosun.sock'
+python3 -m taskrivet tools
+python3 -m taskrivet tools --history
 ```
+
+History scanning is explicit. It reads at most 2 MB of local zsh history, emits only
+recognized first-command counts, and never persists or publishes raw history.
+Dated entries use a 90-day window; undated entries are separately labelled. This
+cannot discover every use in IDEs, other shells, compound commands, or remote hosts.
+Account authentication, quota, incremental cost, and agent health remain unknown.
+No tools are executed during discovery and nothing is installed automatically.
+Local inventory output contains private installation paths: do not commit it.
+
+See [architectural lessons from Bosun](docs/bosun-integration.md). Its former
+experimental observer has been removed; the standalone runtime is the direction.
 
 ## Quick start
 
@@ -149,7 +169,7 @@ against a representative baseline.
 Taskrivet owns its repository, package, and local database. It has no dependency
 on ai-dashboard. A dashboard can become an authority and user interface through
 a future adapter; external ticket IDs should map to Taskrivet task IDs.
-The CLI, Python `Ledger` API, and read-only Bosun observer are the current integration surfaces.
+The CLI and Python `Ledger` API are the current integration surfaces.
 
 See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md),
 [security boundaries](SECURITY.md), and [contributing](CONTRIBUTING.md).

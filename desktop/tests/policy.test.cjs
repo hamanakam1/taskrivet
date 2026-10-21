@@ -4,7 +4,8 @@ const {ledgerArgs,dimensions,directory,text}=require('../policy.cjs');
 test('IPC exposes only explicit ledger operations',()=>{
   assert.throws(()=>ledgerArgs('shell',{command:'anything'}));
   assert.deepEqual(ledgerArgs('status'),['status']);
-  assert.deepEqual(ledgerArgs('bosun',{socket:'/tmp/test.sock'}),['bosun-status','--socket','/tmp/test.sock']);
+  assert.throws(()=>ledgerArgs('bosun',{}));
+  assert.deepEqual(ledgerArgs('tools',{history:true}),['tools','--history']);
 });
 test('arguments preserve literal shell characters without shell evaluation',()=>{
   assert.deepEqual(ledgerArgs('pack',{task:'a; touch x'}),['pack','a; touch x','--max-bytes','12000']);

@@ -15,8 +15,10 @@ The Python core does not execute models or shells. The desktop deliberately open
 local login shells on user request, with normal user permissions and environment.
 It is not a shell sandbox or a spending firewall. Commands you type can access files,
 networks, and existing credentials. See [desktop boundaries](docs/desktop.md).
-The optional Bosun observer uses an explicit same-user Unix socket and sends only a
-handshake; it neither launches a daemon nor dispatches commands.
+The tool catalog scans executable filenames and optionally a bounded history sample.
+Direct launches execute the currently detected binary with no extra arguments.
+Tool names are not a trust guarantee; local wrappers and executable replacements
+run with your normal permissions. No external session daemon is used.
 
 Scope and budget constraints govern the ledger only; external agents must cooperate.
 A blocked session does not terminate a process, and expiry must be reconciled before
