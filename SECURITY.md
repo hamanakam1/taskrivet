@@ -1,20 +1,27 @@
 # Security boundaries
 
-Tessivolt 0.1 is a trusted, single-user local coordination tool, not an authorization
+Taskrivet 0.2 is a trusted, single-user local coordination tool, not an authorization
 server or sandbox. Anyone who can use the database can perform operator decisions.
 Session IDs identify attempts; they are not authentication tokens. Do not expose the
 Python API or database to untrusted clients or place the database on a shared host.
 
 The ledger records explicit supplied context and evidence locally. It does not
 redact secrets automatically. Store it outside public repositories; the default is
-`~/.tessivolt/ledger.sqlite`. New storage directories use mode 0700 and the database
+`~/.taskrivet/ledger.sqlite`. New storage directories use mode 0700 and the database
 uses mode 0600. Existing directory permissions are not modified. Review permissions
 when selecting a custom location. Use SQLite's backup API for consistent live backups.
 
-No model or shell execution, telemetry, network listener, provider authentication,
-or credential discovery is implemented. Scope and budget constraints govern the
-ledger only; external agents must cooperate. A blocked session does not terminate
-an external process, and expiry must be reconciled before a retry.
+The Python core does not execute models or shells. The desktop deliberately opens
+local login shells on user request, with normal user permissions and environment.
+It is not a shell sandbox or a spending firewall. Commands you type can access files,
+networks, and existing credentials. See [desktop boundaries](docs/desktop.md).
+The optional Bosun observer uses an explicit same-user Unix socket and sends only a
+handshake; it neither launches a daemon nor dispatches commands.
+
+Scope and budget constraints govern the ledger only; external agents must cooperate.
+A blocked session does not terminate a process, and expiry must be reconciled before
+retry. Electron's frontend is isolated and locally served; terminal output is not
+persisted or sent to models automatically. No telemetry is implemented.
 
 Report sensitive vulnerabilities through GitHub private vulnerability reporting if
 enabled, rather than placing secrets or working exploits in public issues. If that

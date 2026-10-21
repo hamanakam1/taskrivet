@@ -9,11 +9,12 @@ from .core import Ledger
 
 
 def parser():
-    p = argparse.ArgumentParser(description='Tessivolt: purposeful agent work, bounded context, visible failures.')
-    p.add_argument('--db', default=os.environ.get('TESSIVOLT_DB', str(Path.home() / '.tessivolt' / 'ledger.sqlite')))
+    p = argparse.ArgumentParser(description='Taskrivet: purposeful agent work, bounded context, visible failures.')
+    p.add_argument('--db', default=os.environ.get('TASKRIVET_DB', str(Path.home() / '.taskrivet' / 'ledger.sqlite')))
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('init')
     sub.add_parser('status')
+    b = sub.add_parser('bosun-status'); b.add_argument('--socket', required=True)
     e = sub.add_parser('events'); e.add_argument('--after', type=int, default=0)
     a = sub.add_parser('task-add')
     a.add_argument('id'); a.add_argument('--objective', required=True); a.add_argument('--acceptance', required=True)
@@ -42,6 +43,10 @@ def main():
     a = parser().parse_args()
     ledger = None
     try:
+        if a.command == 'bosun-status':
+            from .bosun import snapshot
+            print(json.dumps(snapshot(a.socket), indent=2))
+            return
         ledger = Ledger(a.db)
         cmd = a.command
         if cmd == 'init': result = {'schema': 1, 'status': 'ready', 'dispatch_enabled': False}

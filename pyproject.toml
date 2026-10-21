@@ -3,22 +3,22 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tessivolt"
-version = "0.1.0"
+name = "taskrivet"
+version = "0.2.0"
 description = "Keep agent work purposeful, context bounded, and failures visible."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "Tessivolt contributors"}]
+authors = [{name = "Taskrivet contributors"}]
 keywords = ["agents", "orchestration", "context", "cli", "coordination"]
 classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "License :: OSI Approved :: MIT License"]
 
 [project.scripts]
-tessivolt = "tessivolt.cli:main"
+taskrivet = "taskrivet.cli:main"
 
 [project.urls]
-Repository = "https://github.com/hamanakam1/tessivolt"
-Issues = "https://github.com/hamanakam1/tessivolt/issues"
+Repository = "https://github.com/hamanakam1/taskrivet"
+Issues = "https://github.com/hamanakam1/taskrivet/issues"
 
 [tool.setuptools.packages.find]
-include = ["tessivolt*"]
+include = ["taskrivet*"]

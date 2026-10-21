@@ -6,7 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
-from tessivolt.core import Conflict, Ledger
+from taskrivet.core import Conflict, Ledger
 
 
 class LedgerTest(unittest.TestCase):
@@ -164,7 +164,7 @@ class LedgerTest(unittest.TestCase):
 
     def test_cli_packet_matches_budget_and_errors_are_json(self):
         self.l.add_context('a', '界 context', 'test')
-        cmd = [sys.executable, '-m', 'tessivolt', '--db', str(self.path)]
+        cmd = [sys.executable, '-m', 'taskrivet', '--db', str(self.path)]
         result = subprocess.run(cmd + ['pack','a','--max-bytes','1000','--packet-only'], capture_output=True)
         self.assertEqual(result.returncode, 0)
         self.assertLessEqual(len(result.stdout), 1000)

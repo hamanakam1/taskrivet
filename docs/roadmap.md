@@ -1,6 +1,8 @@
 # Roadmap
 
-This file describes proposed work, not delivered capabilities.
+This file describes remaining proposed work. The desktop now has embedded terminal tabs,
+a task inspector, failure records, and a read-only Bosun observer. Durable execution
+and automated provider dispatch remain unimplemented.
 
 1. **Qualified adapter contract.** Local fake worker first; versioned work orders,
    structured receipts, cancellation, crash recovery, replay, duplicate prevention,

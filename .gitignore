@@ -4,8 +4,12 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-.tessivolt/
+.taskrivet/
 *.sqlite*
 .env
 .env.*
 .DS_Store
+
+node_modules/
+desktop/dist/
+output/
