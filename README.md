@@ -12,6 +12,10 @@ TTTTT  AAA   SSSS K   K RRRR  IIIII V   V EEEEE TTTTT
 
 **Less repeated context. More accepted work. Visible failures.**
 
+**[Explore the interactive system guide →](https://hamanakam1.github.io/taskrivet/)**
+
+A browser walkthrough with the live Archify map, workflow steps, and current capability boundaries.
+
 Taskrivet is an open-source, local-first coordination core for people working
 across AI coding agents, CLIs, and terminal sessions. Give each session a clear
 objective, a bounded context packet, an explicit owner, and an evidence trail.
