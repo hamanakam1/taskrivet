@@ -22,3 +22,8 @@ test('usage cannot be negative or noninteger',()=>{
 test('directory must exist and be a directory',()=>{
   assert.throws(()=>directory(__filename));assert.equal(directory(__dirname),__dirname);
 });
+
+test('dashboard bridge exposes only bounded preview arguments',()=>{
+ assert.deepEqual(ledgerArgs('dashboard',{url:'http://127.0.0.1:7878',status:'planned',offset:100}),['dashboard-preview','--url','http://127.0.0.1:7878','--status','planned','--offset','100']);
+ assert.throws(()=>ledgerArgs('dashboard',{offset:-1}));
+});

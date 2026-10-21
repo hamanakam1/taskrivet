@@ -42,8 +42,8 @@ function renderFailures(){
   if(!state.failures.length){list.append(node('p','No failures recorded.','muted'));return;}
   for(const f of state.failures){const row=node('div',undefined,'failure-row');row.append(node('small',`${f.occurrences} occurrence${f.occurrences===1?'':'s'}`),node('strong',f.category),node('p',f.summary),node('code',f.fingerprint));list.append(row);}
 }
-function showView(view){for(const name of ['workspace','failures','tools']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
-for(const view of ['workspace','failures','tools'])$(view+'-nav').onclick=()=>showView(view);
+function showView(view){for(const name of ['workspace','failures','tools','dashboard']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog',dashboard:'Ticket preview'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
+for(const view of ['workspace','failures','tools','dashboard'])$(view+'-nav').onclick=()=>showView(view);
 function renderTabs(){
   $('tabs').replaceChildren();for(const t of terms.values()){const b=node('button',`${t.state==='running'?'●':'○'} ${t.task||t.shell.split('/').pop()} ${t.ordinal}`, 'tab'+(t.id===activeTerminal?' active':''));b.onclick=()=>activate(t.id);$('tabs').append(b);}
   $('terminal-empty').hidden=terms.size>0;
@@ -113,3 +113,25 @@ async function loadTools(history=false){const result=await api.ledger('tools',{h
 $('tools-refresh').onclick=safe(()=>loadTools());$('tools-history').onclick=safe(()=>loadTools(true));
 $('tool-search').oninput=renderTools;$('tool-filter').onchange=renderTools;
 $('tools-nav').onclick=safe(async()=>{showView('tools');if(!toolRows.length)await loadTools();});
+
+let dashboardPage=null,dashboardOffset=0;
+function renderDashboard(){
+ const list=$('dashboard-list');list.replaceChildren();if(!dashboardPage)return;
+ const query=$('dashboard-search').value.toLowerCase(),project=$('dashboard-project').value;
+ const rows=dashboardPage.tickets.filter(t=>(!project||t.project===project)&&(t.key+' '+t.title).toLowerCase().includes(query));
+ if(!rows.length)list.append(node('p','No work tickets match this page and filter. This is not a complete-board result.','muted'));
+ for(const t of rows){const row=node('div',undefined,'failure-row');row.append(node('strong',`${t.key} · ${t.title}`),node('small',`${t.project} · ${t.stage} · priority ${t.priority??'unknown'} · ${t.readiness}`));const detail=node('details');detail.append(node('summary','Execution prerequisites'));const ul=node('ul');for(const reason of t.reasons)ul.append(node('li',reason));detail.append(ul);row.append(detail);list.append(row);}
+}
+async function loadDashboard(offset=0){
+ $('dashboard-refresh').disabled=true;$('dashboard-next').disabled=true;$('dashboard-prev').disabled=true;
+ try{const page=await api.ledger('dashboard',{url:$('dashboard-url').value,status:$('dashboard-status').value,offset});dashboardPage=page;dashboardOffset=offset;
+ $('dashboard-summary').textContent=`${page.returned} work tickets returned · source total ${page.source_total??'unknown'} · offset ${offset} · source generated ${page.source_generated_at??'unknown'} · ${page.stale?'STALE / UNKNOWN':'source reports fresh'} · fetched ${new Date().toLocaleTimeString()}. ${page.coverage}`;
+ $('dashboard-project').replaceChildren(new Option('All returned projects',''));for(const p of page.projects)$('dashboard-project').add(new Option(p,p));
+ $('dashboard-prev').disabled=offset===0;$('dashboard-next').disabled=page.has_more!==true;renderDashboard();
+ }catch(e){dashboardPage=null;$('dashboard-list').replaceChildren();$('dashboard-summary').textContent='Source unavailable or incomplete. No tickets admitted; refresh to retry.';throw e;}finally{$('dashboard-refresh').disabled=false;}
+}
+$('dashboard-refresh').onclick=safe(()=>loadDashboard());$('dashboard-next').onclick=safe(()=>loadDashboard(dashboardOffset+100));$('dashboard-prev').onclick=safe(()=>loadDashboard(Math.max(0,dashboardOffset-100)));
+$('dashboard-search').oninput=renderDashboard;$('dashboard-project').onchange=renderDashboard;
+$('dashboard-status').onchange=()=>{dashboardPage=null;dashboardOffset=0;$('dashboard-list').replaceChildren();$('dashboard-prev').disabled=true;$('dashboard-next').disabled=true;$('dashboard-summary').textContent='Source filter changed. Read a new page to refresh.';};
+
+setInterval(()=>{if(dashboardPage&&Date.now()/1000-dashboardPage.observed_at>300){$('dashboard-summary').textContent='STALE: this preview is over five minutes old. Read a new source page before making a decision.';}},15000);

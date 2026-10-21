@@ -82,7 +82,7 @@ condition or approach, and retain cumulative cost and token accounting.
 ## Delivery order
 
 1. Taskrivet-owned session service and reconnection (implemented separately).
-2. Read-only ai-dashboard adapter and eligibility preview with source freshness.
+2. Read-only ai-dashboard adapter and prerequisite preview with source freshness (implemented; no admission authority).
 3. Atomic claims and scoped grants with adapter contract tests.
 4. Supervised single-ticket execution, evidence return, and manual acceptance.
 5. Measured routing, constrained parallel work, budgets, and bounded recovery.

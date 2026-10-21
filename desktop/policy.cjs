@@ -17,6 +17,10 @@ function directory(value) {
 function ledgerArgs(action, data = {}) {
   const t = (key, max) => text(data[key], key, max);
   switch (action) {
+    case 'dashboard': {
+      if(!Number.isInteger(data.offset)||data.offset<0||data.offset>1000000)throw new Error('Invalid offset');
+      return ['dashboard-preview','--url',t('url',256),'--status',t('status',32),'--offset',String(data.offset)];
+    }
     case 'tools': return data.history === true ? ['tools', '--history'] : ['tools'];
     case 'status': return ['status'];
     case 'pack': return ['pack', t('task'), '--max-bytes', '12000'];
