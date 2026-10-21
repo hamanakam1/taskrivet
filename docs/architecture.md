@@ -1,0 +1,61 @@
+# Architecture and boundaries
+
+## Implemented in 0.1
+
+A Python library and JSON CLI use one local SQLite WAL ledger. Transactions serialize
+claims. The ledger stores tasks, exact resource keys, sessions, leases, checkpoints,
+content-addressed context, profile declarations, failure fingerprints, and events.
+State transitions and the event recording for each transition commit together.
+
+Tasks move from ready to running, then review or blocked. Review can be accepted,
+retried, or cancelled. Blocked work can be retried or cancelled after operator
+reconciliation. Expired sessions are never resurrected; a retry receives a new ID.
+Reported usage remains attached to every attempt and counts against the task budget.
+
+Resource reservations remain for running, blocked, and review tasks. This is
+conservative: the operator must reconcile stale workers and unmerged work before
+releasing reservations. Exact scope keys are a caller contract, not path enforcement.
+
+Context blobs are content addressed; attachment metadata has a source, priority,
+and optional expiry. A source label is asserted provenance, not fetched or verified
+content. Reattaching identical content updates that task's attachment metadata.
+Multiple distinct source aliases for identical content are not retained in 0.1.
+
+The event feed has monotonic sequence numbers. Consumers retain their cursor and
+must deduplicate replayed events. SQLite is for one local host; multi-host writes
+and untrusted clients are outside the supported deployment model.
+
+## Proposed execution service
+
+A future service will accept explicit work orders from one authority. Work orders
+need source revision, objective, acceptance criteria, allowed resources, credentials
+by reference, account identity, budget reservation, expiry, retry ceiling, and an
+idempotency key. Admission and dispatch must be distinct from recommendation.
+
+Adapters should prefer supported structured APIs or noninteractive CLI interfaces.
+PTY/TUI automation requires capability-specific qualification. Model identity alone
+is insufficient: the tool harness, account, environment, permissions, and version
+are part of an execution profile.
+
+The executor will supervise isolated workspaces and processes, support pause/cancel,
+and return durable receipts. A failed or timed-out provider call may have incurred
+cost: preserve unknown liability and reconcile before retrying. Lease fencing must
+be enforced by the actual mutation gateway before claiming stale-worker protection.
+A ledger cannot prevent a disconnected worker from editing files.
+
+A dashboard adapter will remain separate from the core. One authority owns queue
+admission, budgets, and acceptance. Dashboard restarts should not terminate workers;
+worker crashes should not corrupt dashboard state. No integration is installed by
+this release.
+
+## Proposed learning and efficiency
+
+Collect accepted outcomes, rejection reasons, repair work, operator review minutes,
+wall time, tokens, cost with provenance, and uncertainty. Compare routing policies
+on representative task cohorts. Include overhead from context preparation, review,
+retries, and failed attempts. Preserve held-out evaluations and avoid rewarding
+agents for easy-task selection or self-reported completion.
+
+Initially use explicit rules. Add calibrated task-specific performance estimates
+only when samples support them. Explore alternative routes only within authorized
+budgets. Never let a learning policy relax hard authorization or privacy constraints.
