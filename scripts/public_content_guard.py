@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Inspect Git objects as data. Never import or execute candidate-tree code."""
 
+# Synthetic review-gate exercise; this temporary PR is not for merging.
+
 import argparse
 import json
 import os
