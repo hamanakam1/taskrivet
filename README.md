@@ -22,6 +22,18 @@ plus a working coordination ledger and JSON CLI. Create tasks, record checkpoint
 inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
 verified billing and automated ai-dashboard dispatch are future work. A read-only dashboard ticket preview is available. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
 
+## Interactive system guide
+
+**[Explore the Panther → AI Dashboard → Taskrivet system atlas](https://hamanakam1.github.io/panther-intent-capture/)**
+
+A screenshot-led walkthrough with an interactive Archify map, current-versus-planned
+connections, and details about ticket delivery, execution authority, and acceptance.
+In the intended workflow, ai-dashboard coordinates the handoff; Panther and Taskrivet
+do not communicate directly. Taskrivet's current dashboard connection is read-only;
+the ticket execution adapter is planned, not implemented.
+
+[View the guide source and rebuild instructions](https://github.com/hamanakam1/panther-intent-capture/tree/gh-pages).
+
 ## Mac desktop app
 
 ```sh
