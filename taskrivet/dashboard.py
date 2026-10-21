@@ -76,7 +76,7 @@ def project_payload(payload, origin, state, offset, now=None):
     rows.sort(key=lambda t:(t['priority'] if t['priority'] is not None else 99,t['key']))
     stats=payload.get('stats') if isinstance(payload.get('stats'),dict) else {}
     total=stats.get('total') if type(stats.get('total')) is int else None
-    return {'adapter':'ai-dashboard','mode':'preview-only','origin':origin,'observed_at':observed,
+    return {'adapter':'ticket-service','mode':'preview-only','origin':origin,'observed_at':observed,
             'source_generated_at':generated,'stale':stale,'source_status':state,'offset':offset,'limit':100,
             'source_total':total,'returned':len(rows),'has_more':None if total is None else offset+100<total,
             'coverage':'One bounded source page; project filters apply only to returned work tickets.',
@@ -84,7 +84,7 @@ def project_payload(payload, origin, state, offset, now=None):
             'tool_selection':'Pending task context and capability qualification'}
 
 
-def preview(base='http://127.0.0.1:7878', state='planned', offset=0):
+def preview(base, state='planned', offset=0):
     url=endpoint(base,state,offset)
     opener=build_opener(ProxyHandler({}),NoRedirect())
     with opener.open(Request(url,headers={'Accept':'application/json'}),timeout=10) as response:

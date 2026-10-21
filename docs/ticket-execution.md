@@ -9,8 +9,8 @@ are not implemented by this document.
 ## Independence and authority
 
 The core must operate with a local queue and with interchangeable source adapters.
-The ai-dashboard adapter is first-class, but private paths, database schemas,
-provider credentials, and ticket naming conventions cannot be core dependencies.
+The local ticket-service adapter is optional. Private paths, database schemas,
+provider credentials, and deployment-specific ticket conventions cannot be core dependencies.
 Additional adapters can target GitHub Issues, Linear, Jira, or other queues.
 
 For an externally managed ticket, its source owns eligibility, priority, holds,
@@ -82,7 +82,7 @@ condition or approach, and retain cumulative cost and token accounting.
 ## Delivery order
 
 1. Taskrivet-owned session service and reconnection (implemented separately).
-2. Read-only ai-dashboard adapter and prerequisite preview with source freshness (implemented; no admission authority).
+2. Read-only ticket-service adapter and prerequisite preview with source freshness (implemented; no admission authority).
 3. Atomic claims and scoped grants with adapter contract tests.
 4. Supervised single-ticket execution, evidence return, and manual acceptance.
 5. Measured routing, constrained parallel work, budgets, and bounded recovery.

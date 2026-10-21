@@ -20,7 +20,7 @@ Measure useful outcomes instead of how many agents are busy.
 **Status: v0.3 desktop alpha.** A Mac app with real embedded terminal tabs,
 plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
 inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
-verified billing and automated ai-dashboard dispatch are future work. A read-only dashboard ticket preview is available. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
+verified billing and automated external-ticket dispatch are future work. A read-only local ticket-service preview is available. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
 
 ## Mac desktop app
 
@@ -39,7 +39,7 @@ shells running in Taskrivet’s independent local session service. Quitting and 
 ## Standalone tool catalog
 
 Taskrivet owns its embedded terminal processes and coordination ledger. It does
-not connect to or require Bosun, tmux, or ai-dashboard.
+not require Bosun, tmux, or an external ticket service.
 
 The desktop Tool catalog discovers executable commands from PATH and common local
 installation folders. Search all commands, filter coding-agent profiles, and launch
@@ -190,29 +190,34 @@ on 2026-10-21. Web searches found no confirmed competing software product. These
 or universal name exclusivity. Neither package registry has been published to.
 
 
-## Optional ai-dashboard ticket preview
+## Optional local ticket preview
 
-The desktop Ticket preview reads a bounded page from a local ai-dashboard Ticket
-Center. Start with Planned work across all returned projects; filter by project or
+The desktop Ticket preview reads a bounded page from an explicitly configured local
+service implementing the supported ticket protocol. Start with Planned work across all returned projects; filter by project or
 search within the page, select other source states, and page through results.
 It shows source timestamps, reported counts, readiness, and known execution holds.
 An adapter snapshot does not authorize execution or establish complete-board coverage.
 
 ```sh
-python3 -m taskrivet dashboard-preview --url http://127.0.0.1:7878 --status planned --offset 0
+python3 -m taskrivet dashboard-preview --url http://127.0.0.1:8080 --status planned --offset 0
 ```
+
+The origin above is a synthetic example. There is no default destination: supply
+`--url` or enter your service origin in the desktop. Changing the URL does not
+provide compatibility with arbitrary ticket systems. The adapter identity in
+preview JSON is `ticket-service`; the CLI command remains `dashboard-preview`.
 
 This adapter uses GET `/api/tix` with a 100-row request, explicit source status,
 and offset. It never calls ticket mutation, authorization, agent launch, or acceptance
-endpoints. It avoids `/api/master`, whose general board handler can schedule agent
-assignment maintenance. Unknown/stale readiness is not promoted to eligible work.
+endpoints. It never calls a general board or maintenance endpoint. Unknown/stale
+readiness is not promoted to eligible work.
 The preview does not import tickets into the local ledger, read provider credentials,
 or send source data to a model. Output can contain private ticket information; keep
 it local. Only local HTTP origins are supported, redirects and proxy inheritance
 are disabled, and responses are bounded to 8 MiB with a ten-second timeout.
 
 The adapter is optional. Taskrivet's local queue and terminal service remain usable
-without ai-dashboard. Other ticket systems can implement the proposed adapter contract.
+without any external ticket service. Other ticket systems can implement the proposed adapter contract.
 Tool recommendations, atomic claims, scoped grants, and dispatch are still future work.
 
 ## GitHub activity and distribution
