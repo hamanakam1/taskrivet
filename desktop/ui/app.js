@@ -45,13 +45,13 @@ function renderFailures(){
 function showView(view){for(const name of ['workspace','failures','tools']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
 for(const view of ['workspace','failures','tools'])$(view+'-nav').onclick=()=>showView(view);
 function renderTabs(){
-  $('tabs').replaceChildren();for(const t of terms.values()){const b=node('button',`${t.state==='running'?'●':'○'} ${t.task||'Shell'} ${t.ordinal}`, 'tab'+(t.id===activeTerminal?' active':''));b.onclick=()=>activate(t.id);$('tabs').append(b);}
+  $('tabs').replaceChildren();for(const t of terms.values()){const b=node('button',`${t.state==='running'?'●':'○'} ${t.task||t.shell.split('/').pop()} ${t.ordinal}`, 'tab'+(t.id===activeTerminal?' active':''));b.onclick=()=>activate(t.id);$('tabs').append(b);}
   $('terminal-empty').hidden=terms.size>0;
 }
 function activate(id){activeTerminal=id;const t=terms.get(id);if(t.task)selectedTask=t.task;
   for(const other of terms.values())other.el.classList.toggle('active',other.id===id);
-  $('terminal-path').textContent=t.cwd;$('terminal-state').textContent=t.state==='running'?'SHELL ACTIVE':`EXITED · ${t.exitCode??'—'}`;
-  $('terminal-hint').textContent=t.session?'Linked to a ledger session. Shell activity is not verified progress.':'Unassigned shell · no task completion inferred.';
+  $('terminal-path').textContent=t.cwd;$('terminal-state').textContent=t.state==='running'?'PROCESS ACTIVE · SURVIVES APP QUIT':`EXITED · ${t.exitCode??'—'}`;
+  $('terminal-hint').textContent=t.session?'Linked to a ledger session. Shell activity is not verified progress.':'Unassigned session · survives app quit · no completion inferred.';
   $('stop-terminal').disabled=t.state!=='running';$('remove-terminal').disabled=t.state==='running';renderTabs();renderTasks();renderInspector();
   requestAnimationFrame(()=>{t.fit.fit();t.xterm.focus();});
 }
@@ -71,7 +71,8 @@ function addTerminal(info){
   activate(info.id);
 }
 api.onData(receive);
-api.onExit(({id,exitCode})=>{const t=terms.get(id);if(!t)return;t.state='exited';t.exitCode=exitCode;t.xterm.writeln(`\r\n[Shell exited with code ${exitCode}. Task acceptance is unchanged.]`);if(activeTerminal===id)activate(id);else renderTabs();refresh();});
+api.onDisconnect(()=>{for(const t of terms.values())t.state='disconnected';renderTabs();renderInspector();$('terminal-state').textContent='CONNECTION LOST';error(new Error('Session connection lost. Reopen the app to reconcile. Commands have not been replayed.'));});
+api.onExit(({id,exitCode})=>{const t=terms.get(id);if(!t)return;t.state='exited';t.exitCode=exitCode;t.xterm.writeln(`\r\n[Process exited with code ${exitCode}. Task acceptance is unchanged.]`);if(activeTerminal===id)activate(id);else renderTabs();refresh();});
 $('add-task').onclick=()=>$('task-dialog').showModal();
 $('task-form').onsubmit=safe(async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));await api.ledger('create',data);selectedTask=data.id;$('task-dialog').close();e.target.reset();await refresh();});
 let launchTool=null, toolRows=[];

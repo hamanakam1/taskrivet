@@ -37,10 +37,9 @@ not by output or a busy indicator. Expiry or budget limits block ledger progress
 they do not terminate a manually controlled shell. The inspector shows the task state.
 The task's exact scope keys do not restrict filesystem access.
 
-Closing the window hides it while shells are active. Reopen the app from the Dock or
-Window menu. Quitting with active shells prompts before killing PTYs. Detached child
-processes may remain and must be reconciled independently. Terminals and scrollback
-are not restored after app quit or a crash. A standalone Taskrivet session service is proposed.
+Closing or quitting the desktop leaves terminal processes in the Taskrivet session
+service. Reopening reconnects to them. Use Stop terminal to end a process.
+Detached child processes may remain and require separate reconciliation.
 
 A shell exit does not finish or accept a task. Stop the linked terminal before
 submitting its result for review, accepting, or retrying. Checkpoints and failure
@@ -64,10 +63,31 @@ programs run by the user. Do not paste secrets into recorded context or evidence
 - Packaged Apple Silicon app was launched and visually reviewed on a Mac.
 - Real embedded PTY input produced expected output in `/tmp`.
 - Shell input/output remained functional after closing and reopening the window.
-- Quit with an active test shell displayed the confirmation and stopped the app.
-- No live AI provider/TUI compatibility  was qualified.
+- Automated service test preserves the same shell PID and output across client disconnect/reconnect.
+- No live AI provider/TUI compatibility was qualified.
 
 At initial dependency review, `npm audit --omit=dev` reported no vulnerabilities.
 The build dependency chain had a moderate `sprintf-js` advisory with no patched
 upstream version available. It is not in the packaged runtime dependency tree.
 Do not describe this alpha as security-audited or ready for untrusted clients.
+
+
+## Current standalone session lifecycle
+
+Taskrivet now starts its own detached Electron-as-Node session service on demand.
+The service, not the window, owns node-pty processes. Closing or quitting the desktop
+leaves these processes running. On launch, the desktop authenticates to a private
+Unix socket and restores terminal IDs, process IDs, task links, exit states, and a
+bounded output tail. Use Stop terminal to end work; Close tab removes exited records.
+
+There is no Bosun/tmux
+backend, launchd registration, reboot persistence, or automatic command replay.
+The service must remain alive. Its output buffer is not a complete transcript or a
+terminal-screen serialization; long-running TUIs may require a redraw after attach.
+Task ownership leases still expire normally; process survival does not renew a lease
+or prove progress. The service uses the environment it inherited when started.
+
+A startup lock serializes service creation. If the desktop crashes during service
+startup, an orphaned `starting` directory can block future starts; reconcile process
+and socket state before removing it. A disconnected client reports unknown outcomes
+instead of automatically retrying commands. Reopen the app to reconcile sessions.

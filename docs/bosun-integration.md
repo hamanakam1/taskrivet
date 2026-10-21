@@ -9,8 +9,7 @@ preserve ordered events and reconnect snapshots, distinguish observed activity
 from confirmed progress, and test terminal focus and key routing with fake agents.
 No Bosun implementation or assets were copied.
 
-Taskrivet currently owns PTYs inside its Electron main process. Closing a window
-preserves active sessions while the app runs; quitting does not. A future Taskrivet
-session service should own PTYs independently, with authenticated local IPC,
-reconnectable output, and explicit stop/recovery semantics. That service is not yet
-implemented. Agent turn completion must remain separate from accepted ticket work.
+Taskrivet now owns PTYs in its own detached local session service. The desktop
+reconnects through authenticated Unix-socket IPC. This survives desktop quit, not
+service failure or machine reboot. Agent turn completion remains separate from
+accepted ticket work.

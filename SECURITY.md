@@ -18,7 +18,13 @@ networks, and existing credentials. See [desktop boundaries](docs/desktop.md).
 The tool catalog scans executable filenames and optionally a bounded history sample.
 Direct launches execute the currently detected binary with no extra arguments.
 Tool names are not a trust guarantee; local wrappers and executable replacements
-run with your normal permissions. No external session daemon is used.
+run with your normal permissions. Taskrivet’s own detached session service owns PTYs.
+It uses a per-ledger Unix socket in a mode-0700 directory, a mode-0600 socket, and
+a mode-0600 random handshake token. No TCP listener or third-party daemon is used.
+Same-user processes remain within the trust boundary. Quitting the desktop does
+not stop agents; use Stop terminal. The service retains at most 1 MiB of UTF-8 output
+per terminal in memory, with at most 12 terminal records. Service failure or reboot
+loses terminal state; do not infer completion or automatically replay commands.
 
 Scope and budget constraints govern the ledger only; external agents must cooperate.
 A blocked session does not terminate a process, and expiry must be reconciled before

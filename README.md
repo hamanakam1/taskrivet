@@ -20,7 +20,7 @@ Measure useful outcomes instead of how many agents are busy.
 **Status: v0.2 desktop alpha.** A Mac app with real embedded terminal tabs,
 plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
 inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
-restart-proof terminals, verified billing, and ai-dashboard integration are future work.
+verified billing and ai-dashboard integration are future work. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
 
 ## Mac desktop app
 
@@ -34,7 +34,7 @@ Requires Python 3.11+ for the ledger and Node/npm for source development.
 `npm run build:mac` builds an unsigned Apple Silicon `.app` locally. The desktop
 has runtime dependencies; the Python coordination core remains standard-library-only.
 See [desktop setup and lifecycle](docs/desktop.md). Closing a window keeps active
-shells in the app process; quitting the app does not preserve them.
+shells running in Taskrivet’s independent local session service. Quitting and reopening the desktop reconnects to them. Use Stop terminal to end a process.
 
 ## Standalone tool catalog
 
@@ -158,6 +158,8 @@ zero-incremental-cost classification. Paid and unknown-cost profiles are exclude
 Eligible profiles remain unranked: Taskrivet does not invent quality estimates.
 A declaration is not proof of entitlement, authentication, health, or available
 quota, and an eligible result is never execution authorization.
+
+The proposed primary workflow is described in the [ticket execution contract](docs/ticket-execution.md): eligible ticket → qualified tool → bounded context and scoped access → execution → verified evidence → source-owned review. This contract is not an implemented dashboard integration.
 
 The long-term objective is **accepted outcomes per unit of total effort**:
 operator time, rework, latency, tokens, credits, and cash. Subscription utilization

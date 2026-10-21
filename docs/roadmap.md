@@ -1,8 +1,8 @@
 # Roadmap
 
 This file describes remaining proposed work. The desktop now has embedded terminal tabs,
-a task inspector, failure records, and a local CLI tool catalog. Durable execution
-and automated provider dispatch remain unimplemented.
+a task inspector, failure records, and a local CLI tool catalog. A standalone session service preserves PTYs across desktop restarts. Service-crash/reboot
+recovery and automated provider dispatch remain unimplemented.
 
 1. **Qualified adapter contract.** Local fake worker first; versioned work orders,
    structured receipts, cancellation, crash recovery, replay, duplicate prevention,
@@ -23,8 +23,9 @@ and automated provider dispatch remain unimplemented.
    and explicit escalation policies. Human effort is part of the cost function.
 7. **Failure intelligence.** Root-cause clustering, bounded recovery playbooks,
    recurrence alerts, and semantic off-track checks evaluated against real labels.
-8. **Durable service.** Separate worker lifecycle, migrations, backups, local IPC
-   authentication, resource controls, and chaos tests before unattended execution.
+8. **Service hardening.** Migrations, service-failure recovery, resource controls,
+   and chaos tests before unattended execution; separate PTY ownership and local
+   IPC authentication are implemented.
 
 First release acceptance: installable CLI, meaningful tests, deterministic
 coordination constraints, bounded context, explicit limitations, reproducible demo,
