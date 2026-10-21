@@ -14,7 +14,7 @@ def parser():
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('init')
     sub.add_parser('status')
-    d = sub.add_parser('dashboard-preview'); d.add_argument('--url', default='http://127.0.0.1:7878'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
+    d = sub.add_parser('dashboard-preview'); d.add_argument('--url', required=True, help='Explicit local ticket-service origin'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
     b = sub.add_parser('tools'); b.add_argument('--history', action='store_true')
     e = sub.add_parser('events'); e.add_argument('--after', type=int, default=0)
     a = sub.add_parser('task-add')

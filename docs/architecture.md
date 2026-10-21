@@ -45,7 +45,7 @@ A ledger cannot prevent a disconnected worker from editing files.
 
 A dashboard adapter will remain separate from the core. One authority owns queue
 admission, budgets, and acceptance. Dashboard restarts should not terminate workers;
-worker crashes should not corrupt dashboard state. Taskrivet owns its terminal backend; no external daemon or ai-dashboard adapter is installed.
+worker crashes should not corrupt source state. Taskrivet owns its terminal backend; no external daemon or ticket-service installation is required.
 
 ## Proposed learning and efficiency
 

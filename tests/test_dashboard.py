@@ -1,7 +1,21 @@
 import unittest
+import contextlib
+import io
+from unittest.mock import patch
 from taskrivet.dashboard import endpoint, project_payload
+from taskrivet.cli import parser
 
 class DashboardTests(unittest.TestCase):
+    def test_destination_must_be_explicit(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parser().parse_args(['dashboard-preview'])
+        self.assertEqual(parser().parse_args(['dashboard-preview', '--url', 'http://localhost:8080']).url,
+                         'http://localhost:8080')
+        from taskrivet.dashboard import preview
+        with patch('taskrivet.dashboard.build_opener') as opener:
+            with self.assertRaises(ValueError): preview('')
+            opener.assert_not_called()
+
     def payload(self, **changes):
         p={'tickets':[{'kind':'work','key':'synthetic-1','title':'Fix fixture','project':'Example','stage':'planned','priority':1,'readiness':{'verdict':'READY','verified':True},'detail_head':'not authorized for autonomous execution','tags':['no-auto']}], 'stats':{'total':200},'generated_at':'2026-01-01T00:00:00Z','stale':False}
         p.update(changes)
@@ -9,7 +23,7 @@ class DashboardTests(unittest.TestCase):
     def test_local_only_no_credentials_or_query(self):
         for url in ('https://example.com','http://example.com','http://127.0.0.1@evil.test','http://user@localhost','http://localhost/a','http://localhost?x=1'):
             with self.assertRaises(ValueError): endpoint(url,'planned',0)
-        self.assertEqual(endpoint('http://127.0.0.1:7878','planned',100),'http://127.0.0.1:7878/api/tix?status=planned&limit=100&offset=100')
+        self.assertEqual(endpoint('http://127.0.0.1:8080','planned',100),'http://127.0.0.1:8080/api/tix?status=planned&limit=100&offset=100')
     def test_preserves_holds_never_authorizes_and_minimizes_data(self):
         p=self.payload();p['tickets'][0]['secret_extra']='PRIVATE'
         r=project_payload(p,'local','planned',0,1767225600)
