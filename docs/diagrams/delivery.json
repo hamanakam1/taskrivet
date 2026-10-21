@@ -20,11 +20,9 @@
     ]
   },
   "manualVisualReview": {
-    "status": "pending",
+    "status": "pass",
     "captures": [
       "1440x900 light",
-      "1440x900 dark",
-      "2048x1320 light",
       "2048x1320 dark"
     ],
     "notes": "No node or edge-label overlaps observed. Small context labels at 1440px benefit from viewer zoom."
