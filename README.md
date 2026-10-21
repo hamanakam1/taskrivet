@@ -14,7 +14,7 @@ TTTTT  AAA   SSSS K   K RRRR  IIIII V   V EEEEE TTTTT
 
 **[Explore the interactive system guide →](https://hamanakam1.github.io/taskrivet/)**
 
-A browser walkthrough with the live Archify map, workflow steps, and current capability boundaries.
+A browser walkthrough with interactive architecture and [ticket lifecycle maps](https://hamanakam1.github.io/taskrivet/#lifecycle), workflow steps, and current capability boundaries.
 
 Taskrivet is an open-source, local-first coordination core for people working
 across AI coding agents, CLIs, and terminal sessions. Give each session a clear

@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Taskrivet: execution, recovery and acceptance",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1040,
+      660
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Implemented local task states"
+    },
+    {
+      "id": "recovery",
+      "label": "Failure and reconciliation"
+    },
+    {
+      "id": "exit",
+      "label": "Explicit exit"
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "type": "start",
+      "label": "Ready",
+      "sublabel": "objective and scope",
+      "lane": "main",
+      "col": 0,
+      "tag": "recorded"
+    },
+    {
+      "id": "running",
+      "type": "active",
+      "label": "Running",
+      "sublabel": "owned session + lease",
+      "lane": "main",
+      "col": 1,
+      "tag": "attempt"
+    },
+    {
+      "id": "review",
+      "type": "decision",
+      "label": "Review",
+      "sublabel": "finish with evidence",
+      "lane": "main",
+      "col": 3,
+      "tag": "not done"
+    },
+    {
+      "id": "accepted",
+      "type": "success",
+      "label": "Accepted",
+      "sublabel": "operator decision",
+      "lane": "main",
+      "col": 4,
+      "tag": "local result"
+    },
+    {
+      "id": "blocked",
+      "type": "failure",
+      "label": "Blocked",
+      "sublabel": "failure / expiry / limits",
+      "lane": "recovery",
+      "col": 0,
+      "tag": "reconcile"
+    },
+    {
+      "id": "cancelled",
+      "type": "neutral",
+      "label": "Cancelled",
+      "sublabel": "operator reason",
+      "lane": "exit",
+      "col": 1,
+      "tag": "terminal",
+      "yOffset": 160
+    }
+  ],
+  "transitions": [
+    {
+      "from": "running",
+      "to": "blocked",
+      "label": "record failure",
+      "variant": "security"
+    },
+    {
+      "from": "blocked",
+      "to": "ready",
+      "label": "retry with reason",
+      "variant": "emphasis",
+      "route": "left-channel",
+      "channelX": 20,
+      "labelDx": 75,
+      "toSide": "left"
+    },
+    {
+      "from": "review",
+      "to": "ready",
+      "label": "rework with reason",
+      "variant": "dashed",
+      "route": "top-channel",
+      "channelY": 70
+    },
+    {
+      "from": "review",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "security",
+      "labelDy": 90
+    },
+    {
+      "from": "blocked",
+      "to": "cancelled",
+      "label": "cancel",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Implemented ledger",
+      "items": [
+        "Finish and acceptance are separate decisions",
+        "Retry preserves usage and failure history"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Planned executor",
+      "items": [
+        "Automatic recovery and verified source completion",
+        "Ledger changes do not stop terminal processes"
+      ]
+    }
+  ]
+}

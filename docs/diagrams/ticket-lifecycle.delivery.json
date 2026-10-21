@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "f6cd7a9dff7045e4b7fd51e5f279ba49",
+  "artifact": "ticket-lifecycle.html",
+  "sha256": "f5eb950d093cd740dc6ca87b2251e1bfa1d9422d2763f1b472b11df6728a9f8c",
+  "specification": "ticket-lifecycle.json",
+  "specificationSha256": "98883d73e527de4979d9b1c7a76c3a71067883524cd47aec17e3984877101ce1",
+  "renderer": {
+    "version": "2.16.0",
+    "pin": "c826e6c3a7abad19c0f3cd1ca57207d54b1ad8de"
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0,
+    "status": "passed",
+    "checks": "9/9"
+  },
+  "browserContainment": {
+    "status": "pass",
+    "viewports": [
+      "1440x900",
+      "1600x1000",
+      "1920x1080",
+      "2048x1320"
+    ]
+  },
+  "manualVisualReview": {
+    "status": "pass",
+    "captures": [
+      "1440x900 light",
+      "2048x1320 dark"
+    ],
+    "notes": "Retry arrow points into Ready; labels remain visible; no viewport overflow in checked sizes."
+  },
+  "sourceEvidence": [
+    {
+      "path": "taskrivet/core.py",
+      "sha256": "4563177b51c1ff4957da9dde2578ced3e64d431f5ac2bb25abf307161d93c5d6",
+      "revision": "da6f8e5e7f5e0f15da6d0cf29c55f33933db3c64"
+    },
+    {
+      "path": "docs/ticket-execution.md",
+      "sha256": "fde8ad05994514e38f1c9f73650ae345812663c9f9e60e5ce1f57db1bfa75591",
+      "scope": "proposed automation, labeled planned"
+    }
+  ],
+  "limits": "Local ledger states; external ticket acceptance and autonomous recovery remain planned. Cancellation from Ready is supported but omitted from the map for clarity."
+}
