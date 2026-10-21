@@ -10,6 +10,10 @@ boundaries when changing them. Do not add network calls or telemetry to read com
 Do not publish real transcripts, credentials, account details, or private tickets in
 fixtures. Keep examples synthetic. Document schema changes and a migration plan.
 
+The [public-content privacy check](docs/public-content-privacy.md) scans tracked
+content using a private policy. Keep its real entries out of public fixtures and
+logs; changes to workflows or the checker need a maintainer-reviewed manual scan.
+
 Changes to adapters must state their supported versions, permission model, usage
 provenance, cancellation semantics, and unverified assumptions. Prefer a small
 qualified adapter over a large list of nominal integrations.
