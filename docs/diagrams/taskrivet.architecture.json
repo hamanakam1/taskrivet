@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Taskrivet: tickets, execution and GitHub",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1200,
+      760
+    ]
+  },
+  "components": [
+    {
+      "id": "dashboard",
+      "type": "frontend",
+      "label": "Ticket service",
+      "sublabel": "Ticket authority",
+      "pos": [
+        60,
+        100
+      ],
+      "size": [
+        230,
+        80
+      ]
+    },
+    {
+      "id": "preview",
+      "type": "backend",
+      "label": "Taskrivet adapter",
+      "sublabel": "Observed: ticket preview",
+      "pos": [
+        480,
+        100
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "desktop",
+      "type": "frontend",
+      "label": "Taskrivet desktop",
+      "sublabel": "Observed: tools and context",
+      "pos": [
+        910,
+        100
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "github",
+      "type": "external",
+      "label": "GitHub",
+      "sublabel": "Issues, PRs and releases",
+      "pos": [
+        60,
+        350
+      ],
+      "size": [
+        230,
+        80
+      ]
+    },
+    {
+      "id": "sync",
+      "type": "messagebus",
+      "label": "Activity reconciliation",
+      "sublabel": "Implemented: receipts and outbox",
+      "pos": [
+        480,
+        350
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "sessions",
+      "type": "backend",
+      "label": "Session service",
+      "sublabel": "Observed: persistent PTYs",
+      "pos": [
+        910,
+        350
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "review",
+      "type": "security",
+      "label": "Suggested responses",
+      "sublabel": "Implemented: review categories",
+      "pos": [
+        480,
+        600
+      ],
+      "size": [
+        240,
+        80
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "external",
+      "label": "CLI coding agents",
+      "sublabel": "Observed: manual launch",
+      "pos": [
+        910,
+        600
+      ],
+      "size": [
+        240,
+        80
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "dashboard",
+      "to": "preview",
+      "label": "GET tickets"
+    },
+    {
+      "from": "preview",
+      "to": "desktop",
+      "label": "bounded view"
+    },
+    {
+      "from": "desktop",
+      "to": "sessions",
+      "label": "local IPC",
+      "labelDy": 70
+    },
+    {
+      "from": "sessions",
+      "to": "agents",
+      "label": "PTY I/O",
+      "labelDy": 70
+    },
+    {
+      "from": "github",
+      "to": "sync",
+      "label": "activity",
+      "variant": "dashed",
+      "labelDy": -24,
+      "labelDx": -60
+    },
+    {
+      "from": "sync",
+      "to": "review",
+      "label": "classify",
+      "variant": "dashed",
+      "labelDy": 70
+    },
+    {
+      "from": "sync",
+      "to": "dashboard",
+      "label": "reconcile",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Implemented foundation",
+      "items": [
+        "Independent desktop and session service",
+        "Dashboard preview is read-only"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Execution authority",
+      "items": [
+        "External activity is untrusted input",
+        "Claims and automatic Done remain planned"
+      ]
+    }
+  ]
+}

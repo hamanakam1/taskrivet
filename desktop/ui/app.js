@@ -42,8 +42,8 @@ function renderFailures(){
   if(!state.failures.length){list.append(node('p','No failures recorded.','muted'));return;}
   for(const f of state.failures){const row=node('div',undefined,'failure-row');row.append(node('small',`${f.occurrences} occurrence${f.occurrences===1?'':'s'}`),node('strong',f.category),node('p',f.summary),node('code',f.fingerprint));list.append(row);}
 }
-function showView(view){for(const name of ['workspace','failures','tools','dashboard']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog',dashboard:'Ticket preview'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
-for(const view of ['workspace','failures','tools','dashboard'])$(view+'-nav').onclick=()=>showView(view);
+function showView(view){for(const name of ['workspace','failures','tools','dashboard','github']){$(name+'-view').hidden=name!==view;$(name+'-nav').classList.toggle('selected',name===view);} $('view-title').textContent={workspace:'Workspace',failures:'Failure ledger',tools:'Tool catalog',dashboard:'Ticket preview',github:'GitHub activity'}[view];if(view==='workspace'&&terminal())requestAnimationFrame(()=>terminal().fit.fit());}
+for(const view of ['workspace','failures','tools','dashboard','github'])$(view+'-nav').onclick=()=>showView(view);
 function renderTabs(){
   $('tabs').replaceChildren();for(const t of terms.values()){const b=node('button',`${t.state==='running'?'●':'○'} ${t.task||t.shell.split('/').pop()} ${t.ordinal}`, 'tab'+(t.id===activeTerminal?' active':''));b.onclick=()=>activate(t.id);$('tabs').append(b);}
   $('terminal-empty').hidden=terms.size>0;
@@ -100,7 +100,7 @@ $('pack').onclick=safe(async()=>{const result=await api.ledger('pack',{task:sele
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
 // Global navigation avoids intercepting ordinary terminal keys.
 document.addEventListener('keydown',e=>{if(e.metaKey&&e.shiftKey&&e.key.toLowerCase()==='t'){e.preventDefault();openTerminal();}});
-(async()=>{try{const initial=await api.bootstrap();home=initial.home;for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){error(e);}})();
+(async()=>{try{const initial=await api.bootstrap();home=initial.home;$('github-repo').value=initial.githubRepo||'';for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){error(e);}})();
 setInterval(()=>{if(!document.hidden)refresh();},15000);
 
 function renderTools(){
@@ -135,3 +135,6 @@ $('dashboard-search').oninput=renderDashboard;$('dashboard-project').onchange=re
 $('dashboard-status').onchange=()=>{dashboardPage=null;dashboardOffset=0;$('dashboard-list').replaceChildren();$('dashboard-prev').disabled=true;$('dashboard-next').disabled=true;$('dashboard-summary').textContent='Source filter changed. Read a new page to refresh.';};
 
 setInterval(()=>{if(dashboardPage&&Date.now()/1000-dashboardPage.observed_at>300){$('dashboard-summary').textContent='STALE: this preview is over five minutes old. Read a new source page before making a decision.';}},15000);
+
+api.onIntegrationError(p=>error(new Error(p.message)));
+$('github-refresh').onclick=safe(async()=>{const r=await api.ledger('github-status',{repo:$('github-repo').value});$('github-summary').textContent=r.last_poll?`Last observed ${new Date(r.last_poll*1000).toLocaleString()} · historical completeness not guaranteed · dispatch disabled`:'No completed poll recorded.';$('github-coverage').textContent=JSON.stringify({coverage:r.coverage,responses:r.responses},null,2);$('github-list').replaceChildren();for(const e of r.recent){const row=node('div',undefined,'failure-row');row.append(node('strong',e.summary),node('p',e.kind+' · '+e.action),node('small',e.url));$('github-list').append(row);}});

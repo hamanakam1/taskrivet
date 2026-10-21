@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "artifact": "taskrivet.html",
+  "sha256": "72600b5add451e671ed7ac43f3b2a0f6f7a22bff915004e533ca1edd1d87ec82",
+  "specification": "taskrivet.architecture.json",
+  "rendererVersion": "2.16.0",
+  "rendererRevision": "c826e6c3a7abad19c0f3cd1ca57207d54b1ad8de",
+  "deterministicValidation": {
+    "checks": 9,
+    "errors": 0,
+    "warnings": 0
+  },
+  "browserContainment": {
+    "status": "pass",
+    "viewports": [
+      "1440x900",
+      "1600x1000",
+      "1920x1080",
+      "2048x1320"
+    ]
+  },
+  "manualVisualReview": {
+    "status": "pending",
+    "captures": [
+      "1440x900 light",
+      "1440x900 dark",
+      "2048x1320 light",
+      "2048x1320 dark"
+    ],
+    "notes": "No node or edge-label overlaps observed. Small context labels at 1440px benefit from viewer zoom."
+  },
+  "scope": "Architecture evidence, not proof of autonomous execution or complete GitHub history."
+}

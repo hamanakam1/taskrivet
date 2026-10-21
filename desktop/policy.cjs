@@ -17,6 +17,7 @@ function directory(value) {
 function ledgerArgs(action, data = {}) {
   const t = (key, max) => text(data[key], key, max);
   switch (action) {
+    case 'github-status': return ['github-status','--repo',t('repo',160)];
     case 'dashboard': {
       if(!Number.isInteger(data.offset)||data.offset<0||data.offset>1000000)throw new Error('Invalid offset');
       return ['dashboard-preview','--url',t('url',256),'--status',t('status',32),'--offset',String(data.offset)];

@@ -1,6 +1,6 @@
 # Security boundaries
 
-Taskrivet 0.2 is a trusted, single-user local coordination tool, not an authorization
+Taskrivet 0.3 is a trusted, single-user local coordination tool, not an authorization
 server or sandbox. Anyone who can use the database can perform operator decisions.
 Session IDs identify attempts; they are not authentication tokens. Do not expose the
 Python API or database to untrusted clients or place the database on a shared host.
@@ -34,3 +34,11 @@ persisted or sent to models automatically. No telemetry is implemented.
 Report sensitive vulnerabilities through GitHub private vulnerability reporting if
 enabled, rather than placing secrets or working exploits in public issues. If that
 channel is unavailable, open a minimal issue requesting a private contact channel.
+
+GitHub synchronization uses the existing local `gh` authentication. It never copies
+credentials into an agent, artifact, or public comment. Remote titles/comments are
+untrusted observations. Suggested response categories do not execute commands,
+merge PRs, create tickets, change acceptance, or authorize spending. Explicit public
+summary files are operator-selected publication content; they are not automatically
+redacted. The dashboard bridge never exports ticket detail or terminal transcripts.
+Its local configuration must be owned by the current user with mode 0600.

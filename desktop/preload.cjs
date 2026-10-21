@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('workspace', {
   resize:(id,cols,rows)=>ipcRenderer.invoke('terminal:resize',id,cols,rows),
   stop:id=>ipcRenderer.invoke('terminal:stop',id),
   remove:id=>ipcRenderer.invoke('terminal:remove',id),
+  onIntegrationError:callback=>{ipcRenderer.on('integration:error',(_e,p)=>callback(p));},
   onDisconnect:callback=>{ipcRenderer.on('terminal:disconnected',callback);},
   onData:callback=>{const listener=(_e,p)=>callback(p);ipcRenderer.on('terminal:data',listener);return()=>ipcRenderer.removeListener('terminal:data',listener);},
   onExit:callback=>{const listener=(_e,p)=>callback(p);ipcRenderer.on('terminal:exit',listener);return()=>ipcRenderer.removeListener('terminal:exit',listener);}

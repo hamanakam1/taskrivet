@@ -71,7 +71,8 @@ async function newTerminal({cwd, task = null, tool = null} = {}) {
     throw e;
   }
 }
-handle('bootstrap', async () => ({home:os.homedir(), terminals:await sessions.call('list'), version:app.getVersion()}));
+function configuredRepo(){try{return JSON.parse(fs.readFileSync(path.join(os.homedir(),'.taskrivet','github-bridge.json'),'utf8')).repo||'';}catch{return '';}}
+handle('bootstrap', async () => ({home:os.homedir(), terminals:await sessions.call('list'), version:app.getVersion(),githubRepo:configuredRepo()}));
 handle('ledger', async (action, data) => {
   if (['accept','retry','cancel','finish'].includes(action)) {
     const active = (await sessions.call('list')).some(t => t.state==='running' && (t.task===data?.task || t.session===data?.session));
@@ -106,6 +107,20 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance',()=>{if(win){win.show();win.focus();}});
   app.whenReady().then(()=>{
+    const bridgeConfig=path.join(os.homedir(),'.taskrivet','github-bridge.json');
+    let githubBusy=false;
+    async function syncGitHub(){
+      if(githubBusy||!fs.existsSync(bridgeConfig))return;githubBusy=true;
+      try{
+        python ||= await findPython();
+        const {stdout}=await exec(python,['-m','taskrivet','github-cycle','--config',bridgeConfig],{cwd:coreRoot,env:{...process.env,PYTHONPATH:coreRoot},timeout:180000,maxBuffer:2*1024*1024});
+        const receipt=JSON.parse(stdout);
+        if(receipt.state==='dashboard_reconciliation_failed'||Object.values(receipt.poll?.coverage||{}).some(feed=>feed.error))throw new Error('Incomplete reconciliation');
+      }
+      catch(e){notify('integration:error',{message:'GitHub sync incomplete; inspect integration receipts before relying on freshness.'});}
+      finally{githubBusy=false;}
+    }
+    syncGitHub();const githubTimer=setInterval(syncGitHub,300000);app.on('before-quit',()=>clearInterval(githubTimer));
     Menu.setApplicationMenu(Menu.buildFromTemplate([
       {label:'Taskrivet',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},
       {role:'editMenu'}, {label:'Window',submenu:[{role:'minimize'},{role:'zoom'},{role:'close'},{label:'Show workspace',click:()=>{win.show();win.focus();}}]}

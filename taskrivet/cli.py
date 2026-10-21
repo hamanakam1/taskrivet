@@ -14,6 +14,9 @@ def parser():
     sub = p.add_subparsers(dest='command', required=True)
     sub.add_parser('init')
     sub.add_parser('status')
+    for command in ('github-poll','github-status'):
+        g=sub.add_parser(command);g.add_argument('--repo',required=True);g.add_argument('--sync-db',default=str(Path.home()/'.taskrivet'/'github.sqlite'))
+    g=sub.add_parser('github-cycle');g.add_argument('--config',required=True)
     d = sub.add_parser('dashboard-preview'); d.add_argument('--url', default='http://127.0.0.1:7878'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
     b = sub.add_parser('tools'); b.add_argument('--history', action='store_true')
     e = sub.add_parser('events'); e.add_argument('--after', type=int, default=0)
@@ -44,6 +47,15 @@ def main():
     a = parser().parse_args()
     ledger = None
     try:
+        if a.command == 'github-cycle':
+            from .github_cycle import cycle
+            print(json.dumps(cycle(a.config)));return
+        if a.command in ('github-poll','github-status'):
+            from .github_sync import GitHubSync
+            sync=GitHubSync(a.sync_db)
+            try: print(json.dumps(sync.poll(a.repo,max_pages=20) if a.command=='github-poll' else sync.status(a.repo),indent=2))
+            finally: sync.close()
+            return
         if a.command == 'dashboard-preview':
             from .dashboard import preview
             print(json.dumps(preview(a.url,a.status,a.offset), indent=2))

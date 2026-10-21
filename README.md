@@ -17,7 +17,7 @@ across AI coding agents, CLIs, and terminal sessions. Give each session a clear
 objective, a bounded context packet, an explicit owner, and an evidence trail.
 Measure useful outcomes instead of how many agents are busy.
 
-**Status: v0.2 desktop alpha.** A Mac app with real embedded terminal tabs,
+**Status: v0.3 desktop alpha.** A Mac app with real embedded terminal tabs,
 plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
 inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
 verified billing and automated ai-dashboard dispatch are future work. A read-only dashboard ticket preview is available. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
@@ -169,8 +169,10 @@ against a representative baseline.
 ## Independence and integration
 
 Taskrivet owns its repository, package, and local database. It has no dependency
-on ai-dashboard. A dashboard can become an authority and user interface through
-a future adapter; external ticket IDs should map to Taskrivet task IDs.
+on an external ticket service. The optional ticket-service bridge reconciles GitHub observation summaries into an
+explicitly mapped existing ticket using the dashboard-owned compare-and-swap API.
+Public summaries can be posted to an explicitly selected GitHub issue with an
+idempotent outbox. Per-issue lifecycle mirroring and autonomous dispatch remain planned.
 The CLI and Python `Ledger` API are the current integration surfaces.
 
 See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md),
@@ -212,3 +214,24 @@ are disabled, and responses are bounded to 8 MiB with a ten-second timeout.
 The adapter is optional. Taskrivet's local queue and terminal service remain usable
 without ai-dashboard. Other ticket systems can implement the proposed adapter contract.
 Tool recommendations, atomic claims, scoped grants, and dispatch are still future work.
+
+## GitHub activity and distribution
+
+[Release downloads](https://github.com/hamanakam1/taskrivet/releases) contain the
+unsigned Apple Silicon app, Python wheel/source distribution, and checksums.
+The tag workflow builds the CLI container at `ghcr.io/hamanakam1/taskrivet:0.3.0`;
+publication requires a successful workflow and package visibility configuration.
+The container is the coordination CLI, not the Mac application.
+
+The desktop GitHub activity view reads durable local observations. With a private
+bridge configuration, polling starts when the application opens and repeats every
+five minutes until it quits. It does not register a login or boot service.
+See [GitHub synchronization](docs/github-sync.md) for setup, receipt semantics,
+publication commands, source ownership, coverage gaps, and recovery.
+
+[![Taskrivet architecture](docs/diagrams/taskrivet.png)](docs/diagrams/taskrivet.html)
+
+Download [the interactive Archify diagram](docs/diagrams/taskrivet.html) and open it
+in a browser. The [typed source](docs/diagrams/taskrivet.architecture.json) and
+[validation and visual-review receipt](docs/diagrams/delivery.json) are included.
+External intake tools connect through the ticket authority; Taskrivet does not depend on them.
