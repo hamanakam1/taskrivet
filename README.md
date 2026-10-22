@@ -194,6 +194,7 @@ idempotent outbox. Per-issue lifecycle mirroring and autonomous dispatch remain 
 The CLI and Python `Ledger` API are the current integration surfaces.
 
 See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md),
+[long-term plan](docs/long-term-plan.md),
 [security boundaries](SECURITY.md), and [contributing](CONTRIBUTING.md).
 
 ## Development
