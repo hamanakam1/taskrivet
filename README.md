@@ -1,14 +1,28 @@
 # Taskrivet
 
 ```text
-TTTTT  AAA   SSSS K   K RRRR  IIIII V   V EEEEE TTTTT
-  T   A   A S     K  K  R   R   I   V   V E       T
-  T   AAAAA  SSS  KKK   RRRR    I   V   V EEEE    T
-  T   A   A     S K  K  R  R    I    V V  E       T
-  T   A   A SSSS  K   K R   R IIIII   V   EEEEE   T
+TTTTT   AAA   SSSS  K   K  RRRR   IIIII  V   V  EEEE   TTTTT
+  T    A   A  S     K  K  R   R     I    V   V  E       T
+  T    AAAAA   SSS   K K   RRRR     I    V   V  EEE    T
+  T    A   A     S   KK    R  R     I    V   V  E       T
+  T    A   A  SSSS   K K   R   R     I    V V   EEE    T
+  T    A   A     S   K  K  R   R     I    V V   E       T
+  T    A   A  SSSS   K   K  RRRR   IIIII  V   V  EEEE   TTTTT
 
   >_ Less repeated context. More accepted work.
 ```
+
+[![Tests](https://img.shields.io/github/actions/workflow/status/hamanakam1/taskrivet/tests.yml?branch=main&label=tests)](https://github.com/hamanakam1/taskrivet/actions/workflows/tests.yml)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![Repo size](https://img.shields.io/github/repo-size/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet)
+[![Language](https://img.shields.io/github/languages/top/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet)
+[![Last commit](https://img.shields.io/github/last-commit/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/commits/main)
+[![Stars](https://img.shields.io/github/stars/hamanakam1/taskrivet?style=social)](https://github.com/hamanakam1/taskrivet/stargazers)
+[![Forks](https://img.shields.io/github/forks/hamanakam1/taskrivet?style=social)](https://github.com/hamanakam1/taskrivet/network/members)
+[![Issues](https://img.shields.io/github/issues/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/issues)
+[![Contributors](https://img.shields.io/github/contributors/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/graphs/contributors)
+[![Commit activity](https://img.shields.io/github/commit-activity/m/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/commits/main)
 
 **Less repeated context. More accepted work. Visible failures.**
 
