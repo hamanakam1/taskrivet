@@ -4,6 +4,10 @@ This file describes remaining proposed work. The desktop now has embedded termin
 a task inspector, failure records, and a local CLI tool catalog. A standalone session service preserves PTYs across desktop restarts. Service-crash/reboot
 recovery and automated provider dispatch remain unimplemented.
 
+For the long-term shape, the phase-by-phase delivery order, and the decision
+log behind these items, see the [long-term plan](long-term-plan.md). This file
+remains the short list of what is still proposed.
+
 1. **Qualified adapter contract.** Local fake worker first; versioned work orders,
    structured receipts, cancellation, crash recovery, replay, duplicate prevention,
    workspace isolation, and authorization checked immediately before an action.
