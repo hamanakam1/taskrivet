@@ -244,3 +244,4 @@ Download [the interactive Archify diagram](docs/diagrams/taskrivet.html) and ope
 in a browser. The [typed source](docs/diagrams/taskrivet.architecture.json) and
 [validation and visual-review receipt](docs/diagrams/delivery.json) are included.
 External intake tools connect through the ticket authority; Taskrivet does not depend on them.
+
