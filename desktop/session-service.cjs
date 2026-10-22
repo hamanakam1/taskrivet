@@ -4,7 +4,7 @@ const net=require('node:net'), fs=require('node:fs'), path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const pty=require('node-pty');
 const policy=require('./policy.cjs');
-const VERSION=1, MAX_FRAME=32*1024*1024;
+const VERSION=1, MAX_FRAME=32*1024*1024, MAX_TABS=24;
 function privateDirectory(dir){
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
   const st=fs.lstatSync(dir);
@@ -13,7 +13,7 @@ function privateDirectory(dir){
 function startService({dir,token,spawn=pty.spawn}){
   privateDirectory(dir);
   const socketPath=path.join(dir,'sessions.sock'), sessions=new Map(), clients=new Set();
-  function snapshot(t){return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid};}
+  function snapshot(t){return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};}
   function send(c,message){
     if(c.destroyed)return;
     if(c.writableLength>MAX_FRAME){c.destroy();return;}
@@ -24,14 +24,16 @@ function startService({dir,token,spawn=pty.spawn}){
   function dispatch(op,data={}){
     if(op==='list')return [...sessions.values()].map(snapshot);
     if(op==='create'){
-      if(sessions.size>=12)throw new Error('Limit of 12 terminal tabs reached');
+      if(sessions.size>=MAX_TABS)throw new Error('Limit of '+MAX_TABS+' terminal tabs reached');
       const cwd=policy.directory(data.cwd), shell=policy.text(data.shell,'executable',4096);
       if(!path.isAbsolute(shell))throw new Error('Executable must be absolute');
       if(!Array.isArray(data.args)||data.args.length>64||data.args.some(x=>typeof x!=='string'||x.includes('\0')||x.length>65536))throw new Error('Invalid arguments');
       for(const key of ['task','session'])if(data[key]!=null)policy.text(data[key],key,128);
+      for(const key of ['title','kind','ref'])if(data[key]!=null)policy.text(data[key],key,256);
       const proc=spawn(shell,data.args,{name:'xterm-256color',cols:100,rows:30,cwd,
         env:{...process.env,ELECTRON_RUN_AS_NODE:undefined,TERM:'xterm-256color',COLORTERM:'truecolor',TASKRIVET_DB:data.db}});
-      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false};
+      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false,
+        title:data.title||null,kind:data.kind||'shell',ref:data.ref||null};
       sessions.set(t.id,t);
       function flush(){
         if(!t.pending)return;
@@ -85,7 +87,7 @@ function startService({dir,token,spawn=pty.spawn}){
   async function close(){for(const t of sessions.values()){clearInterval(t.timer);if(t.state==='running')t.proc.kill();}for(const c of clients)c.destroy();await new Promise(resolve=>server.close(resolve));}
   return {ready,close,server,sessions};
 }
-module.exports={startService,privateDirectory,VERSION,MAX_FRAME};
+module.exports={startService,privateDirectory,VERSION,MAX_FRAME,MAX_TABS};
 if(require.main===module){
   const dir=process.argv[2];
   try{

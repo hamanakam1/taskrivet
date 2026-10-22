@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+- Added a session inspector beside every terminal. The focused pane's ledger
+  record — session, task, resource scope, bounded context, checkpoints,
+  failures, and event trail — is read from one local `taskrivet detail` view.
+- Added `python3 -m taskrivet detail --task <id>` for a read-only task view with
+  its sessions, context, checkpoints, failures, events, and resource claims.
+- Added split panes, tab renaming, find in the focused pane's scrollback, and a
+  command palette to the desktop terminal card. A split of a task-linked pane
+  joins the existing ledger session instead of claiming a new lease.
+- Added workspace screenshots captured from the real renderer against a
+  synthetic bridge, with the capture script kept in `desktop/scripts`.
+- Added an OpenCode session drawer to the desktop terminal card. Local OpenCode
+  sessions are listed as metadata only and each one opens as its own tab that
+  resumes that session in its own working folder.
+- Added a terminal focus mode. One button collapses the sidebar, heading, inspector,
+  status strip, and title bar so the terminal owns the window, with a
+  Command-Shift-F shortcut and a remembered choice.
+- Added `python3 -m taskrivet opencode-sessions` for bounded local OpenCode session
+  metadata reads, and raised the session service tab limit from twelve to
+  twenty-four.
+
+This alpha still does not read OpenCode transcripts, messages, credentials, or
+provider settings, and it does not write to an OpenCode session. A resumed session is
+a live agent process, not an isolated copy. The session inspector shows recorded
+values: reported usage is not measured cost, recorded evidence is not verified
+evidence, and nothing shown there authorizes execution.
+
 ## 0.3.0 — 2026-10-21
 
 - Added durable GitHub observations, bounded incremental reconciliation, coverage

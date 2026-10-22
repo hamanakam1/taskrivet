@@ -14,6 +14,24 @@ function directory(value) {
   if (!fs.statSync(resolved).isDirectory()) throw new Error('Working directory is not a folder');
   return resolved;
 }
+function opencodeSession(value) {
+  if (!value || typeof value !== 'object') throw new Error('Invalid OpenCode session');
+  const id = text(value.id, 'OpenCode session id', 128);
+  if (!/^[A-Za-z0-9_-]{3,128}$/.test(id)) throw new Error('Invalid OpenCode session id');
+  const directory = value.directory;
+  text(directory, 'working directory', 4096);
+  let resolved;
+  try { resolved = fs.realpathSync(directory); } catch { throw new Error('Session folder is no longer available'); }
+  if (!fs.statSync(resolved).isDirectory()) throw new Error('Session folder is not a folder');
+  const title = typeof value.title === 'string' ? value.title.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+  return {id, directory: resolved, title};
+}
+function sharedSession(view, session) {
+  text(session, 'session', 128);
+  if (!view || !view.session || view.session.id !== session) throw new Error('That session does not belong to this task.');
+  if (view.session.status !== 'active') throw new Error('That session is no longer active. Reconcile it before attaching another pane.');
+  return session;
+}
 function ledgerArgs(action, data = {}) {
   const t = (key, max) => text(data[key], key, max);
   switch (action) {
@@ -24,6 +42,11 @@ function ledgerArgs(action, data = {}) {
     }
     case 'tools': return data.history === true ? ['tools', '--history'] : ['tools'];
     case 'status': return ['status'];
+    case 'detail': {
+      const args = ['detail', '--task', t('task')];
+      if (data.session) args.push('--session', t('session', 128));
+      return args;
+    }
     case 'pack': return ['pack', t('task'), '--max-bytes', '12000'];
     case 'create': return ['task-add', t('id', 128), '--objective', t('objective'), '--acceptance', t('acceptance'), '--scope', t('scope')];
     case 'checkpoint': {
@@ -36,4 +59,4 @@ function ledgerArgs(action, data = {}) {
     default: throw new Error('Unsupported ledger operation');
   }
 }
-module.exports = {text, dimensions, directory, ledgerArgs};
+module.exports = {text, dimensions, directory, ledgerArgs, opencodeSession, sharedSession};

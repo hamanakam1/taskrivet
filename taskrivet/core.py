@@ -418,3 +418,100 @@ class Ledger:
             dict(r) | {"data": json.loads(r["data"])}
             for r in self.db.execute("SELECT * FROM events WHERE seq>? ORDER BY seq", (after,))
         ]
+
+    def detail(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
+        """Read-only operator view of one task, its sessions, and its evidence.
+
+        Everything here is recorded ledger state. Reported usage, recorded
+        evidence, and source labels are operator-supplied records, not measured
+        facts, and nothing in this view grants execution authority.
+        """
+        self.reconcile()
+        task = self.task(task_id)
+        scope = json.loads(task["scope"])
+        now = time.time()
+        sessions = [
+            dict(r) | {"lease_remaining_seconds": max(0, round(r["lease_until"] - now))}
+            for r in self.db.execute("SELECT * FROM sessions WHERE task_id=? ORDER BY created", (task_id,))
+        ]
+        current = next((s for s in sessions if s["id"] == session_id), None)
+        if current is None and sessions:
+            current = sessions[-1]
+        checkpoints = [
+            dict(r)
+            for r in self.db.execute(
+                "SELECT session_id,summary,evidence,next_step,tokens,created FROM checkpoints"
+                " WHERE session_id IN (SELECT id FROM sessions WHERE task_id=?) ORDER BY id DESC",
+                (task_id,),
+            )
+        ]
+        context = [
+            dict(r) | {"expired": r["expires"] is not None and r["expires"] <= now}
+            for r in self.db.execute(
+                "SELECT t.hash,t.source,t.priority,t.expires,LENGTH(c.body) AS bytes"
+                " FROM task_context t JOIN contexts c ON c.hash=t.hash WHERE t.task_id=?"
+                " ORDER BY t.priority DESC,t.hash",
+                (task_id,),
+            )
+        ]
+        failures = [
+            dict(r)
+            for r in self.db.execute(
+                "SELECT f.session_id,f.category,f.summary,f.fingerprint,f.created,"
+                "(SELECT COUNT(*) FROM failures g WHERE g.fingerprint=f.fingerprint) AS occurrences"
+                " FROM failures f WHERE f.task_id=? ORDER BY f.created DESC",
+                (task_id,),
+            )
+        ]
+        events = [
+            dict(r) | {"data": json.loads(r["data"])}
+            for r in self.db.execute(
+                "SELECT seq,type,created,data FROM events WHERE task_id=? ORDER BY seq DESC LIMIT 60",
+                (task_id,),
+            )
+        ]
+        claims = []
+        for row in self.db.execute(
+            "SELECT id,status,scope FROM tasks WHERE status IN ('running','blocked','review') AND id!=?",
+            (task_id,),
+        ):
+            shared = sorted(set(json.loads(row["scope"])).intersection(scope))
+            if shared:
+                claims.append({"task": row["id"], "status": row["status"], "shared_keys": shared})
+        reported = sum(s["tokens"] for s in sessions)
+        try:
+            packed = self.pack(task_id)
+            pack_view = {
+                "bytes": packed["packet_bytes"],
+                "items": len(packed["packet"]["context"]),
+                "omitted": packed["omitted"],
+                "error": None,
+            }
+        except Conflict as exc:
+            pack_view = {"bytes": None, "items": len(context), "omitted": [], "error": str(exc)}
+        return {
+            "task": {
+                "id": task["id"],
+                "objective": task["objective"],
+                "acceptance": task["acceptance"],
+                "kind": task["kind"],
+                "scope": scope,
+                "status": task["status"],
+                "token_budget": task["token_budget"],
+                "created": task["created"],
+                "reported_tokens": reported,
+                "remaining_tokens": max(0, task["token_budget"] - reported),
+            },
+            "session": current,
+            "sessions": sessions,
+            "checkpoints": checkpoints,
+            "context": context,
+            "failures": failures,
+            "events": events,
+            "claims": claims,
+            "pack": pack_view,
+            "provenance": (
+                "Ledger records only. Reported usage, evidence, and context source labels are "
+                "operator-supplied; they are not measured cost, verified evidence, or authority."
+            ),
+        }

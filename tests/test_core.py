@@ -174,5 +174,50 @@ class LedgerTest(unittest.TestCase):
         self.assertIn('unknown task', json.loads(result.stderr)['error'])
 
 
+    def test_detail_reports_session_context_and_evidence(self):
+        sid = self.start()
+        self.cp(sid, tokens=25, evidence='diff:1')
+        self.l.add_context('a', 'reference body', 'test source', priority=5)
+        view = self.l.detail('a')
+        self.assertEqual(view['task']['id'], 'a')
+        self.assertEqual(view['task']['scope'], ['repo/search'])
+        self.assertEqual(view['task']['reported_tokens'], 25)
+        self.assertEqual(view['task']['remaining_tokens'], 75)
+        self.assertEqual(view['session']['id'], sid)
+        self.assertEqual(view['session']['status'], 'active')
+        self.assertGreater(view['session']['lease_remaining_seconds'], 0)
+        self.assertEqual(view['checkpoints'][0]['evidence'], 'diff:1')
+        self.assertEqual(view['context'][0]['source'], 'test source')
+        self.assertEqual(view['context'][0]['bytes'], len(b'reference body'))
+        self.assertTrue(view['events'])
+        self.assertEqual(view['pack']['items'], 1)
+        self.assertIsNone(view['pack']['error'])
+        self.assertIn('not measured cost', view['provenance'])
+
+    def test_detail_claims_show_shared_resource_keys(self):
+        self.l.add_task('b', 'Overlapping change', 'Tests pass', scope=['repo/search'])
+        self.l.start('b', 'other-worker')
+        view = self.l.detail('a')
+        self.assertEqual(view['claims'][0]['task'], 'b')
+        self.assertEqual(view['claims'][0]['status'], 'running')
+        self.assertEqual(view['claims'][0]['shared_keys'], ['repo/search'])
+
+    def test_detail_of_unknown_task_is_an_error(self):
+        with self.assertRaises(ValueError): self.l.detail('missing')
+
+    def test_cli_detail_reads_one_task(self):
+        sid = self.start()
+        self.cp(sid)
+        cmd = [sys.executable, '-m', 'taskrivet', '--db', str(self.path)]
+        result = subprocess.run(cmd + ['detail', '--task', 'a'], capture_output=True)
+        self.assertEqual(result.returncode, 0)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload['session']['id'], sid)
+        self.assertEqual(payload['checkpoints'][0]['summary'], 'progress')
+        result = subprocess.run(cmd + ['detail', '--task', 'missing'], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('unknown task', json.loads(result.stderr)['error'])
+
+
 if __name__ == '__main__':
     unittest.main()

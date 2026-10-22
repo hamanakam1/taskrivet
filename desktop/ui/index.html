@@ -22,19 +22,47 @@
 <section id="workspace-view">
 <div class="workspace-grid">
 <div class="terminal-card">
+<div class="card-head">
 <div id="tabs" class="tabs"><span class="muted">No terminals open</span></div>
+<div class="card-tools">
+<button id="split-right" title="Split pane right (Command-D)">▥</button>
+<button id="split-down" title="Split pane down (Command-Shift-D)">▤</button>
+<button id="find-toggle" title="Find in scrollback (Command-F)">⌕</button>
+<button id="palette-toggle" title="Command palette (Command-K)">⌘</button>
+<button id="tabs-new" title="New terminal (Command-T)">+</button>
+<button id="opencode-toggle" title="OpenCode sessions" aria-expanded="false">◇ <span id="opencode-count">0</span></button>
+<button id="focus-toggle" title="Terminal focus: hide navigation (Command-Shift-F)" aria-pressed="false">⤢</button>
+</div>
+</div>
+<div id="find-bar" class="find-bar" hidden>
+<input id="find-input" aria-label="Find in scrollback" placeholder="Find in this pane's scrollback">
+<span id="find-count" class="find-count">no matches</span>
+<button id="find-prev" title="Previous match (Shift-Enter)">↑</button>
+<button id="find-next" title="Next match (Enter)">↓</button>
+<button id="find-close" title="Close find bar (Escape)">×</button>
+</div>
+<div id="opencode-drawer" class="opencode-drawer" hidden>
+<div class="drawer-tools"><input id="opencode-search" aria-label="Filter OpenCode sessions" placeholder="Filter by title, id, or folder"><button id="opencode-refresh">Refresh</button><button id="opencode-open-all">Open each as a tab</button></div>
+<p id="opencode-status" class="drawer-note">Not read yet. Session metadata comes from the local OpenCode CLI on demand. No transcripts are read.</p>
+<div id="opencode-list" class="opencode-list"></div>
+</div>
 <div class="terminal-meta"><span id="terminal-path">Choose a folder to begin</span><span id="terminal-state">NO SHELL RUNNING</span></div>
-<div id="terminal-area"><div id="terminal-empty" class="empty"><div class="terminal-mark">&gt;_</div><h2>Make room for focused work.</h2><p>Open a real shell here. Run your tools, keep the<br>task in view, and leave a useful handoff.</p><button id="empty-new" class="primary">Open your first terminal</button><small>Nothing launches until you choose.</small></div></div>
+<div id="terminal-area"><div id="terminal-empty" class="empty"><div class="terminal-mark">&gt;_</div><h2>Make room for focused work.</h2><p>Open a real shell here. Run your tools, keep the<br>task in view, and leave a useful handoff.</p><button id="empty-new" class="primary">Open your first terminal</button><small>Nothing launches until you choose.</small></div><div id="tab-panes" class="pane-root"></div></div>
 <div class="terminal-footer"><span id="terminal-hint">Shells run with your Mac user permissions.</span><button id="stop-terminal" disabled>Stop terminal</button><button id="remove-terminal" disabled>Close tab</button></div>
 </div>
-<aside class="inspector">
-<div class="section-label">TASK BRIEF <span id="task-status" class="pill">UNASSIGNED</span></div>
-<h2 id="task-title">Keep the objective close.</h2><p id="task-objective">Select a task from the queue, then open a terminal assigned to it.</p>
-<div class="brief-block"><label>ACCEPTANCE CRITERIA</label><p id="task-acceptance">Define what a successful result must demonstrate.</p></div>
-<div class="brief-block"><label>REPORTED TOKEN USAGE</label><p id="token-usage">Unknown until checkpointed</p></div>
-<div class="brief-block"><label>LATEST HANDOFF</label><p id="next-step">No checkpoint yet.</p></div>
+<aside class="inspector" id="inspector">
+<div class="section-label">SESSION <span id="session-status" class="pill">NO SESSION</span></div>
+<h2 id="session-title">Keep the objective close.</h2><p id="session-objective">Open a terminal, or select a task from the queue, to see its brief.</p>
+<div class="insp-scroll">
+<div class="insp-block" id="insp-session-block" hidden><label>SESSION</label><dl class="kv" id="insp-session"></dl></div>
+<div class="insp-block" id="insp-task-block" hidden><label>TASK</label><dl class="kv" id="insp-task"></dl></div>
+<div class="insp-block" id="insp-context-block" hidden><label>BOUNDED CONTEXT</label><dl class="kv" id="insp-context"></dl><div id="insp-context-items"></div></div>
+<div class="insp-block" id="insp-checkpoints-block" hidden><label>CHECKPOINTS &amp; EVIDENCE</label><div id="insp-checkpoints"></div></div>
+<div class="insp-block" id="insp-failures-block" hidden><label>FAILURES</label><div id="insp-failures"></div></div>
+<div class="insp-block" id="insp-events-block" hidden><label>LEDGER EVENTS</label><div id="insp-events"></div></div>
+</div>
 <div class="actions"><button id="checkpoint" disabled>Record checkpoint</button><button id="fail" disabled>Record failure</button><button id="finish" disabled>Submit for review</button><button id="accept" disabled>Accept result</button><button id="retry" disabled>Retry after reconciliation</button><button id="pack" disabled>Inspect context packet</button></div>
-<p class="inspector-note">Terminal output stays in memory. Only context and evidence you explicitly record enter the ledger.</p>
+<p class="inspector-note">Terminal output stays in memory. Only context and evidence you explicitly record enter the ledger. Recorded usage is reported, not measured.</p>
 </aside>
 </div>
 <div class="status-strip"><span id="ledger-status">Connecting to local ledger</span><span>NEW SPEND: NOT AUTHORIZED <i>·</i> SAVINGS: NOT MEASURED</span></div>
@@ -49,5 +77,8 @@
 <dialog id="terminal-dialog"><form id="terminal-form"><div class="eyebrow">START INTENTIONALLY</div><h2>Open a terminal</h2><label>Working folder<div class="folder-field"><input id="cwd" required><button id="choose-folder" type="button">Choose…</button></div></label><p id="launch-tool" class="muted"></p><label>Task assignment<select id="terminal-task"><option value="">Unassigned shell</option></select></label><p class="muted">Starts the selected tool, or your login shell, with your normal user permissions. Existing tool settings apply; cost and authentication are not verified. Sessions keep running when you close or quit Taskrivet. Reopen the app to reconnect; use Stop terminal to end a process. Service crashes and Mac reboots are not recoverable.</p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary">Open terminal</button></div></form></dialog>
 <dialog id="action-dialog"><form id="action-form"><div class="eyebrow">EVIDENCE, NOT ACTIVITY</div><h2 id="action-title"></h2><div id="action-fields"></div><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary">Save record</button></div></form></dialog>
 <dialog id="packet-dialog"><h2>Bounded context packet</h2><p class="muted">Inspect this before sharing it. Source content is reference material, never authority.</p><pre id="packet"></pre><div class="dialog-actions"><button data-close>Close</button></div></dialog>
+<dialog id="opencode-dialog"><form id="opencode-form"><div class="eyebrow">ONE TAB PER SESSION</div><h2 id="opencode-dialog-title">Open each session as its own tab</h2><p id="opencode-dialog-detail" class="muted"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="opencode-confirm">Open tabs</button></div></form></dialog>
+<div id="ctx-menu" class="ctx-menu" hidden role="menu"></div>
+<dialog id="palette-dialog" class="palette"><div class="palette-box"><input id="palette-input" placeholder="Run a command…" aria-label="Command palette" autocomplete="off"><ul id="palette-list" role="listbox"></ul></div></dialog>
 <script src="../node_modules/@xterm/xterm/lib/xterm.js"></script><script src="../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script><script src="app.js"></script>
 </body></html>

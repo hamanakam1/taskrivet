@@ -48,31 +48,62 @@ function handle(name, fn) { ipcMain.handle(name, async (event, ...args) => { tru
 function notify(kind, payload) {
   if (win && !win.isDestroyed()) win.webContents.send(kind, payload);
 }
-async function newTerminal({cwd, task = null, tool = null} = {}) {
+async function newTerminal({cwd, task = null, tool = null, opencode = null, session = null} = {}) {
   await sessions.connect();
-  cwd = policy.directory(cwd || os.homedir());
-  let executable = null;
-  if (tool) {
-    policy.text(tool, 'tool', 128);
-    const catalog = await ledger(['tools']);
-    executable = catalog.tools.find(t => t.id === tool && t.installed)?.executable;
-    if (!executable) throw new Error('Tool is no longer installed. Refresh the catalog.');
+  let executable = null, args = [], title = null, kind = 'shell', ref = null;
+  if (opencode) {
+    const target = policy.opencodeSession(opencode);
+    executable = await opencodeBinary();
+    if (!executable) throw new Error('OpenCode is not installed in a scanned location. Refresh the tool catalog.');
+    args = ['--session', target.id];
+    cwd = target.directory;
+    title = target.title || target.id;
+    kind = 'opencode';
+    ref = target.id;
+  } else {
+    cwd = policy.directory(cwd || os.homedir());
+    if (tool) {
+      policy.text(tool, 'tool', 128);
+      const catalog = await ledger(['tools']);
+      executable = catalog.tools.find(t => t.id === tool && t.installed)?.executable;
+      if (!executable) throw new Error('Tool is no longer installed. Refresh the catalog.');
+    }
   }
-  let session = null;
-  if (task) {
+  let ledgerSession = null;
+  if (session) {
+    // A second pane may join an existing attempt. It never claims a new lease.
+    policy.text(session, 'session', 128);
+    if (!task) throw new Error('A shared pane must name its task.');
     policy.text(task, 'task');
-    session = (await ledger(['start', task, '--owner', 'desktop-terminal'])).session_id;
+    ledgerSession = policy.sharedSession(await ledger(['detail', '--task', task, '--session', session]), session);
+  } else if (task) {
+    policy.text(task, 'task');
+    ledgerSession = (await ledger(['start', task, '--owner', 'desktop-terminal'])).session_id;
   }
   const shell = executable || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
+  const launchArgs = args.length ? args : (executable ? [] : ['-l']);
   try {
-    return await sessions.call('create',{cwd,task,session,shell,args:executable?[]:['-l'],db});
+    return await sessions.call('create', {cwd, task, session: ledgerSession, shell, args: launchArgs, title, kind, ref, db});
   } catch (e) {
-    if (session) await ledger(['fail', session, '--category','terminal_start','--summary',String(e.message)]).catch(()=>{});
+    if (ledgerSession && !session) await ledger(['fail', ledgerSession, '--category','terminal_start','--summary',String(e.message)]).catch(()=>{});
     throw e;
   }
 }
 function configuredRepo(){try{return JSON.parse(fs.readFileSync(path.join(os.homedir(),'.taskrivet','github-bridge.json'),'utf8')).repo||'';}catch{return '';}}
+let opencodePath=null;
+async function opencodeBinary(){
+  if(opencodePath)return opencodePath;
+  const catalog=await ledger(['tools']);
+  opencodePath=catalog.tools.find(t=>t.id==='opencode'&&t.installed)?.executable||null;
+  return opencodePath;
+}
 handle('bootstrap', async () => ({home:os.homedir(), terminals:await sessions.call('list'), version:app.getVersion(),githubRepo:configuredRepo()}));
+handle('opencode:sessions', async (options = {}) => {
+  const limit = Math.max(1, Math.min(Number(options.limit) || 60, 200));
+  const args = ['opencode-sessions', '--limit', String(limit)];
+  if (options.project) args.push('--project', policy.text(String(options.project), 'project', 4096));
+  return ledger(args);
+});
 handle('ledger', async (action, data) => {
   if (['accept','retry','cancel','finish'].includes(action)) {
     const active = (await sessions.call('list')).some(t => t.state==='running' && (t.task===data?.task || t.session===data?.session));

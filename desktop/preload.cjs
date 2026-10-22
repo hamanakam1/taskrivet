@@ -1,6 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('workspace', {
   bootstrap:()=>ipcRenderer.invoke('bootstrap'),
+  opencodeSessions:options=>ipcRenderer.invoke('opencode:sessions',options),
   ledger:(action,data)=>ipcRenderer.invoke('ledger',action,data),
   chooseDirectory:()=>ipcRenderer.invoke('choose-directory'),
   createTerminal:options=>ipcRenderer.invoke('terminal:create',options),

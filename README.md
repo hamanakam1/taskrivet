@@ -54,6 +54,71 @@ has runtime dependencies; the Python coordination core remains standard-library-
 See [desktop setup and lifecycle](docs/desktop.md). Closing a window keeps active
 shells running in Taskrivet’s independent local session service. Quitting and reopening the desktop reconnects to them. Use Stop terminal to end a process.
 
+## Session inspector and terminal workspace
+
+Every session keeps its record beside it. The right-hand column shows what the
+ledger actually holds for the focused pane: session id, owner, lease time
+remaining, reported usage, the task objective and acceptance criteria, the
+resource scope keys another task is holding, the bounded context packet, every
+checkpoint with its evidence, recorded failures, and the ledger event trail.
+
+![Taskrivet workspace with the session inspector](docs/screenshots/workspace-session-inspector.png)
+
+The inspector follows the focused pane, so a split layout keeps one record
+beside the work it describes. A second pane may join the same ledger session:
+it shares the attempt, and it never claims a new lease.
+
+![Two panes working one task](docs/screenshots/workspace-split-panes.png)
+
+The terminal behaves like a modern terminal emulator. Panes split right or
+down, tabs rename, find searches the focused pane's scrollback including text
+that wrapped, a command palette exposes every action from the keyboard, and the
+shell reports its own folder when it supports OSC 7.
+
+![Find in the scrollback](docs/screenshots/workspace-find-in-scrollback.png)
+
+![Command palette](docs/screenshots/workspace-command-palette.png)
+
+Shortcuts: `⌘T` new tab, `⌘D` split right, `⇧⌘D` split down, `⌘F` find,
+`⌘K` command palette, `⌘W` close pane, `⌘1`–`⌘9` switch tab, `⇧⌘F` focus mode.
+`⌘C` copies a selection when there is one and otherwise reaches the shell.
+
+These captures render the workspace renderer with synthetic data, so they show
+the interface rather than a live run. Rebuild them with:
+
+```sh
+cd desktop
+npm ci
+npx playwright install chromium
+node scripts/capture-screenshots.mjs
+```
+
+## One tab per OpenCode session
+
+The terminal card carries an OpenCode drawer. It reads your local OpenCode session
+list and offers every session as its own tab: each one starts `opencode --session <id>`
+in that session’s own working folder, so a resumed session keeps its history and its
+context. A batch action opens the matching sessions as separate tabs, up to twelve per
+action, and the service holds twenty-four tabs at once.
+
+Only session metadata is read — identifier, title, folder, agent, timestamps. Taskrivet
+does not read transcripts, messages, credentials, or provider settings, and it never
+writes to an OpenCode session. The list reflects what your local OpenCode installation
+reports; sessions on another machine, another account, or a remote host are not visible.
+An OpenCode session resumed in a tab is a live agent process, and a second tab on the
+same session shows the same conversation.
+
+```sh
+python3 -m taskrivet opencode-sessions --limit 60
+```
+
+## Terminal focus
+
+The ⤢ button in the terminal card header collapses the navigation — sidebar, heading,
+inspector, and status strip — so the terminal owns the window. It is not macOS
+fullscreen: the app keeps its own window and the tab bar stays reachable. Command-Shift-F
+toggles it, and the choice is remembered for the next launch.
+
 ## Standalone tool catalog
 
 Taskrivet owns its embedded terminal processes and coordination ledger. It does

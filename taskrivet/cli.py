@@ -19,7 +19,13 @@ def parser():
     g=sub.add_parser('github-cycle');g.add_argument('--config',required=True)
     d = sub.add_parser('dashboard-preview'); d.add_argument('--url', required=True, help='Explicit local ticket-service origin'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
     b = sub.add_parser('tools'); b.add_argument('--history', action='store_true')
+    o = sub.add_parser('opencode-sessions', help='List local OpenCode TUI session metadata')
+    o.add_argument('--limit', type=int, default=60)
+    o.add_argument('--project', default=None, help='Restrict the read to one working folder')
+    o.add_argument('--max-projects', type=int, default=12)
     e = sub.add_parser('events'); e.add_argument('--after', type=int, default=0)
+    d = sub.add_parser('detail', help='Read one task with its sessions, context, and evidence')
+    d.add_argument('--task', required=True); d.add_argument('--session', default=None)
     a = sub.add_parser('task-add')
     a.add_argument('id'); a.add_argument('--objective', required=True); a.add_argument('--acceptance', required=True)
     a.add_argument('--kind', default='code'); a.add_argument('--scope', action='append', required=True)
@@ -64,10 +70,15 @@ def main():
             from .tools import inventory
             print(json.dumps(inventory(a.history), indent=2))
             return
+        if a.command == 'opencode-sessions':
+            from .opencode_sessions import discover
+            print(json.dumps(discover(a.limit, a.project, a.max_projects), indent=2))
+            return
         ledger = Ledger(a.db)
         cmd = a.command
         if cmd == 'init': result = {'schema': 1, 'status': 'ready', 'dispatch_enabled': False}
         elif cmd == 'status': result = ledger.status()
+        elif cmd == 'detail': result = ledger.detail(a.task, a.session)
         elif cmd == 'events': result = ledger.events(a.after)
         elif cmd == 'task-add': result = ledger.add_task(a.id, a.objective, a.acceptance, a.kind, a.scope, a.token_budget)
         elif cmd == 'start': result = ledger.start(a.task, a.owner, a.lease)
