@@ -73,8 +73,13 @@ Verified against the current tree, not the roadmap text.
   install locations, with 26 coding-agent command-name profiles, plus an
   explicitly-invoked bounded history scan.
 - A Mac desktop alpha (`desktop/`) on Electron + node-pty with real embedded
-  terminals, task-linked tabs, an inspector, a failure ledger, and a detached
-  session service that owns PTYs and survives a window or app quit.
+  terminals, task-linked tabs, split panes, a command palette, find across
+  the focused pane's scrollback, a task inspector, a failure ledger, and a
+  detached session service that owns PTYs and survives a window or app quit.
+- A `taskrivet detail` read (`taskrivet/core.py`) that returns the session,
+  the task, resource claims on the same scope keys, the bounded context
+  packet, every checkpoint with its evidence, recorded failures, and the
+  ledger event trail in one record.
 - A public-content privacy guard (`scripts/public_content_guard.py`) that
   inspects Git objects as data and blocks blocklisted content from public
   branches.
@@ -88,6 +93,10 @@ Verified against the current tree, not the roadmap text.
 - Service-failure and reboot recovery for terminals.
 - Any measured savings, throughput, or quality advantage.
 - Signed or notarised desktop distribution.
+- A lease that fences a stale worker. A split pane joins the existing ledger
+  session rather than claiming a new one, which is the right behaviour for a
+  second view of one attempt — and it is also a reminder that nothing fences
+  the attempt itself.
 
 **The structural gap that shapes the whole plan:** the desktop owns process
 lifecycle while the ledger owns task lifecycle, and the two are joined only by
@@ -416,6 +425,22 @@ These need an owner's answer before the next phase starts.
 - `docs/roadmap.md` remains the short list of remaining proposed work; this
   document is the long-term shape. When they disagree, this document explains
   *why*, and the discrepancy is fixed in the same commit.
+
+### Reconciliation log
+
+The plan is a claim about the code, so it has to be checked against the code.
+Every reconciliation records what moved, so a reader can tell how stale the
+document is without reading the whole repository.
+
+| Date | Reconciled against | What moved |
+|------|--------------------|------------|
+| 2026-10-22 | `20b6702` | Plan written against v0.3. Phase 0 opened with nothing closed. |
+| 2026-10-22 | `684c55a` | The desktop gained split panes, a command palette, find across the focused pane's scrollback, and a session inspector; `taskrivet detail` returns the session, task, scope claims, context packet, checkpoints, failures, and the event trail in one record. The ledger schema is unchanged, so **no Phase 0 item is closed** — the structural gap below is exactly where it was. |
+
+The rule above says the plan moves in the same commit as the change. That did
+not happen for the second row: the desktop work landed in another commit, and
+this reconciliation followed it. Recording that is the honest response — the
+alternative would be a plan that claims to be current when it is not.
 
 ## See also
 
