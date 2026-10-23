@@ -345,10 +345,10 @@ async function splitPane(dir){
 }
 async function closePane(id){
   const p=terms.get(id);
-  if(!p)return;
+  if(!p)return true;
   if(p.state==='running'){
     const stopped=await api.stop(id);
-    if(stopped===false)return;
+    if(stopped===false)return false;
   }
   await api.remove(id);
   p.xterm.dispose();p.el.remove();terms.delete(id);
@@ -356,25 +356,27 @@ async function closePane(id){
   if(tab){
     tab.panes=tab.panes.filter(x=>x!==id);
     tab.tree=removeLeaf(tab.tree,id);
-    if(!tab.panes.length){closeTab(tab.id,false);return;}
+    if(!tab.panes.length){await closeTab(tab.id,false);return true;}
     if(activePaneId===id)activePaneId=tab.panes[0];
     renderTabTree(tab);
   }
   if(activePaneId===id)activePaneId=tabs.length?tabs[tabs.length-1].panes[0]:null;
   renderTabs();renderTerminalStatus();refreshInspector();
   fitActive();
+  return true;
 }
 async function closeTab(id,withPanes=true){
   const tab=tabs.find(t=>t.id===id);
-  if(!tab)return;
-  if(withPanes)for(const pid of [...tab.panes])await closePane(pid);
+  if(!tab)return true;
+  if(withPanes)for(const pid of [...tab.panes])if(!await closePane(pid))return false;
   tab.container.remove();
   tabs=tabs.filter(t=>t.id!==id);
   if(activeTabId===id){activeTabId=tabs.length?tabs[tabs.length-1].id:null;activePaneId=activeTabId?tabs.find(t=>t.id===activeTabId).panes[0]:null;}
   renderTabs();renderTerminalStatus();refreshInspector();
+  return true;
 }
 async function closeOtherTabs(id){
-  for(const tab of [...tabs])if(tab.id!==id)await closeTab(tab.id);
+  for(const tab of [...tabs])if(tab.id!==id&&!await closeTab(tab.id))break;
 }
 function renameTab(id){
   const tab=tabs.find(t=>t.id===id);

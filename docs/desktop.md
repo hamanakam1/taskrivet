@@ -83,6 +83,10 @@ one: the attempt and its lease stay shared, and the second pane is refused when
 that session is no longer active. Tabs can be renamed, closed, and closed in
 bulk from the context menu.
 
+Choosing **Keep running** during a pane, tab, or bulk close keeps that pane
+visible and stops the remaining close operation. Panes already closed earlier
+in that operation stay closed.
+
 Find (Command-F) searches the focused pane's scrollback, including text that
 wrapped across lines, and jumps between matches. The command palette
 (Command-K) exposes the same actions as the buttons. The shell's own folder is

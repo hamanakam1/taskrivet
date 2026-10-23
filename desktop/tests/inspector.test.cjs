@@ -32,8 +32,8 @@ function view(id,session=`session-${id}`,evidence=`Evidence ${id}`){
     checkpoints:[{summary:`Summary ${id}`,evidence,next_step:'Review',tokens:10,created:1}],
     failures:[],events:[],claims:[],pack:{bytes:100,items:0,omitted:[],error:null}};
 }
-async function renderer(){
-  const elements=new Map(),requests=[];
+async function renderer({stop}={}){
+  const elements=new Map(),requests=[],removed=[];
   const element=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id);};
   const bridge={
     bootstrap:async()=>({home:'/synthetic',terminals:[]}),
@@ -43,7 +43,7 @@ async function renderer(){
       throw new Error(`Unexpected ledger operation: ${action}`);
     },
     onData(){},onDisconnect(){},onExit(){},onIntegrationError(){},
-    remove:async()=>{},stop:async()=>{throw new Error('No real terminal should be stopped');},
+    remove:async id=>{removed.push(id);},stop:stop||(async()=>{throw new Error('No real terminal should be stopped');}),
   };
   const context=vm.createContext({
     window:{workspace:bridge},document:{getElementById:element,createElement:tag=>new Element(tag),
@@ -65,7 +65,7 @@ async function renderer(){
       if(existingTab){existingTab.panes.push(fixturePane.id);existingTab.tree={type:'split',dir:'h',children:[existingTab.tree,{type:'leaf',id:fixturePane.id}]};}
       else tabs.push(fixtureTab); }`);
   };
-  return {element,requests,run,clickTask,addPane};
+  return {element,requests,removed,run,clickTask,addPane};
 }
 async function loadTask(ui,id){
   ui.clickTask(id);
@@ -149,4 +149,57 @@ test('closing focused panes and tabs loads the replacement focus',async()=>{
   assert.equal(ui.requests.at(-1).data.session,'attempt-other');
   ui.requests.at(-1).resolve(view('alpha','attempt-other'));await settle();
   assert.match(ui.element('insp-session').textContent,/attempt-other/);
+});
+
+for(const count of [1,2])test(`keeping a running pane preserves its ${count}-pane tab`,async()=>{
+  const stopped=[];
+  const ui=await renderer({stop:async id=>{stopped.push(id);return false;}});
+  for(let n=1;n<=count;n++)ui.addPane(`pane-${n}`,'alpha','attempt-alpha','tab-alpha');
+  ui.run("for(const pane of terms.values())pane.state='running'; activateTab('tab-alpha')");
+  await ui.run("closeTab('tab-alpha')");
+  assert.equal(ui.element('tabs').children[0].textContent.includes('alpha'),true);
+  assert.equal(ui.run("tabs.length"),1);
+  assert.equal(ui.run("currentPane().id"),'pane-1');
+  assert.equal(ui.run("terms.size"),count);
+  assert.deepEqual(stopped,['pane-1']);
+  assert.deepEqual(ui.removed,[]);
+});
+
+test('cancelling a tab close preserves remaining panes after earlier panes closed',async()=>{
+  const stopped=[];
+  const ui=await renderer({stop:async id=>{stopped.push(id);return false;}});
+  for(let n=1;n<=3;n++)ui.addPane(`pane-${n}`,'alpha','attempt-alpha','tab-alpha');
+  ui.run("terms.get('pane-2').state='running'; terms.get('pane-3').state='running'; activateTab('tab-alpha')");
+  await ui.run("closeTab('tab-alpha')");
+  assert.equal(ui.run("tabs.length"),1);
+  assert.deepEqual(JSON.parse(ui.run("JSON.stringify(currentTab().panes)")),['pane-2','pane-3']);
+  assert.equal(ui.run("currentPane().id"),'pane-2');
+  assert.deepEqual(stopped,['pane-2']);
+  assert.deepEqual(ui.removed,['pane-1']);
+});
+
+test('close other tabs stops at a kept running pane',async()=>{
+  const stopped=[];
+  const ui=await renderer({stop:async id=>{stopped.push(id);return false;}});
+  for(const name of ['keep','cancel','later'])ui.addPane(`pane-${name}`,'alpha','attempt-alpha',`tab-${name}`);
+  ui.run("for(const pane of terms.values())pane.state='running'; activateTab('tab-keep')");
+  await ui.run("closeOtherTabs('tab-keep')");
+  assert.equal(ui.run("tabs.length"),3);
+  assert.equal(ui.run("currentPane().id"),'pane-keep');
+  assert.deepEqual(stopped,['pane-cancel']);
+  assert.deepEqual(ui.removed,[]);
+});
+
+test('confirmed tab close removes its panes and focuses the remaining tab',async()=>{
+  const stopped=[];
+  const ui=await renderer({stop:async id=>{stopped.push(id);return true;}});
+  for(let n=1;n<=2;n++)ui.addPane(`pane-${n}`,'alpha','attempt-alpha','tab-alpha');
+  ui.addPane('pane-beta','beta','attempt-beta','tab-beta');
+  ui.run("for(const pane of terms.values())pane.state='running'; activateTab('tab-alpha')");
+  await ui.run("closeTab('tab-alpha')");
+  assert.deepEqual(stopped,['pane-1','pane-2']);
+  assert.deepEqual(ui.removed,['pane-1','pane-2']);
+  assert.equal(ui.run("tabs.length"),1);
+  assert.equal(ui.run("currentPane().id"),'pane-beta');
+  assert.equal(ui.element('session-title').textContent,'beta');
 });
