@@ -5,7 +5,7 @@ const terms=new Map(),pending=new Map();
 let state={tasks:[],sessions:[],failures:[],metrics:{}},selectedTask=null,home='',action=null,refreshing=false;
 let focusMode=false;
 let tabs=[],activeTabId=null,activePaneId=null,tabSeq=0;
-let detail=null,detailKey='',detailAt=0;
+let detail=null,detailKey='',detailAt=0,detailGeneration=0;
 const opencode={sessions:[],loaded:false,loading:false,pending:[]};
 function error(e){const message=e.message||String(e);$('error').textContent=message;$('error').hidden=false;const dialog=document.querySelector('dialog[open]');if(dialog){let line=dialog.querySelector('.error');if(!line){line=node('p',undefined,'error');dialog.prepend(line);}line.textContent=message;}}
 function safe(fn){return async (...args)=>{try{$('error').hidden=true;await fn(...args);}catch(e){error(e);}};}
@@ -24,7 +24,7 @@ async function refresh(){
 function renderTasks(){
   $('task-list').replaceChildren();
   if(!state.tasks.length)$('task-list').append(node('p','No tasks yet. Use + to define the first outcome.','muted'));
-  for(const t of state.tasks){const b=node('button',undefined,'task-item'+(t.id===selectedTask?' active':''));b.append(node('strong',t.id),node('small',t.status));b.onclick=()=>{selectedTask=t.id;renderTasks();renderInspector();};$('task-list').append(b);}
+  for(const t of state.tasks){const b=node('button',undefined,'task-item'+(t.id===selectedTask?' active':''));b.append(node('strong',t.id),node('small',t.status));b.onclick=()=>{selectedTask=t.id;renderTasks();refreshInspector();};$('task-list').append(b);}
   $('accepted-count').textContent=state.metrics.accepted??0;$('failure-count').textContent=state.failures.reduce((n,f)=>n+f.occurrences,0);
 }
 
@@ -61,17 +61,31 @@ function clock(seconds){
   const s=Math.max(0,Math.round(seconds));
   return `${Math.floor(s/60)}m ${String(s%60).padStart(2,'0')}s`;
 }
-async function loadDetail(force=false){
+function detailTarget(){
   const p=currentPane(),id=activeTaskId();
-  const key=id?`${id}::${p&&p.session?p.session:''}`:'';
-  if(!force&&key===detailKey&&Date.now()-detailAt<4000)return;
-  if(!id){detail=null;detailKey='';return;}
-  try{
-    detail=await api.ledger('detail',{task:id,session:p&&p.session?p.session:undefined});
-    detailKey=key;detailAt=Date.now();
-  }catch(e){detail=null;detailKey='';}
+  const session=p&&p.session?p.session:undefined;
+  return {id,session,key:id?JSON.stringify([id,session||null]):''};
 }
+async function loadDetail(force=false){
+  const {id,session,key}=detailTarget();
+  if(!force&&key===detailKey&&Date.now()-detailAt<4000)return;
+  const generation=++detailGeneration;
+  if(key!==detailKey){detail=null;detailKey='';detailAt=0;}
+  renderInspector();
+  if(!id)return;
+  try{
+    const result=await api.ledger('detail',{task:id,session});
+    if(generation!==detailGeneration||key!==detailTarget().key)return;
+    detail=result;
+    detailKey=key;detailAt=Date.now();
+  }catch(e){
+    if(generation!==detailGeneration||key!==detailTarget().key)return;
+    detail=null;detailKey='';detailAt=0;
+  }
+}
+function refreshInspector(){return loadDetail(true).then(renderInspector);}
 function renderInspector(){
+  if(detailKey!==detailTarget().key){detail=null;detailKey='';detailAt=0;}
   const p=currentPane(),t=task();
   const session=detail&&detail.session?detail.session:null;
   $('session-status').textContent=session?String(session.status).toUpperCase():(p?String(p.state).toUpperCase():'NO SESSION');
@@ -219,7 +233,7 @@ function activateTab(id){
   if(tab&&!tab.panes.includes(activePaneId))activePaneId=tab.panes[0]||null;
   for(const other of tabs)other.container.classList.toggle('active',other.id===activeTabId);
   applyPaneFocus();
-  renderTabs();renderTerminalStatus();renderInspector();
+  renderTabs();renderTerminalStatus();refreshInspector();
   fitActive();
 }
 function activatePane(id){
@@ -231,7 +245,7 @@ function activatePane(id){
   applyPaneFocus();
   if(p.task)selectedTask=p.task;
   renderTabs();renderTerminalStatus();renderTasks();
-  loadDetail(true).then(renderInspector);
+  refreshInspector();
   requestAnimationFrame(()=>{try{p.fit.fit();}catch(e){error(new Error('Terminal could not be resized to the available space.'));}p.xterm.focus();});
 }
 function stateLabel(t){if(!t)return 'NO SHELL RUNNING';if(t.state==='running')return 'PROCESS ACTIVE · SURVIVES APP QUIT';if(t.state==='disconnected')return 'CONNECTION LOST';return `EXITED · ${t.exitCode??'—'}`;}
@@ -347,7 +361,7 @@ async function closePane(id){
     renderTabTree(tab);
   }
   if(activePaneId===id)activePaneId=tabs.length?tabs[tabs.length-1].panes[0]:null;
-  renderTabs();renderTerminalStatus();renderInspector();
+  renderTabs();renderTerminalStatus();refreshInspector();
   fitActive();
 }
 async function closeTab(id,withPanes=true){
@@ -357,7 +371,7 @@ async function closeTab(id,withPanes=true){
   tab.container.remove();
   tabs=tabs.filter(t=>t.id!==id);
   if(activeTabId===id){activeTabId=tabs.length?tabs[tabs.length-1].id:null;activePaneId=activeTabId?tabs.find(t=>t.id===activeTabId).panes[0]:null;}
-  renderTabs();renderTerminalStatus();renderInspector();
+  renderTabs();renderTerminalStatus();refreshInspector();
 }
 async function closeOtherTabs(id){
   for(const tab of [...tabs])if(tab.id!==id)await closeTab(tab.id);
@@ -562,7 +576,7 @@ api.onData(receive);
 api.onDisconnect(()=>{for(const t of terms.values())t.state='disconnected';renderTabs();updatePaneHeads();renderInspector();renderTerminalStatus();error(new Error('Session connection lost. Reopen the app to reconcile. Commands have not been replayed.'));});
 api.onExit(({id,exitCode})=>{const t=terms.get(id);if(!t)return;t.state='exited';t.exitCode=exitCode;t.xterm.writeln(`\r\n[Process exited with code ${exitCode}. Task acceptance is unchanged.]`);updatePaneHeads();renderTabs();if(activePaneId===id)renderInspector();refresh();});
 $('add-task').onclick=()=>$('task-dialog').showModal();
-$('task-form').onsubmit=safe(async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));await api.ledger('create',data);selectedTask=data.id;$('task-dialog').close();e.target.reset();await refresh();});
+$('task-form').onsubmit=safe(async e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));await api.ledger('create',data);selectedTask=data.id;refreshInspector();$('task-dialog').close();e.target.reset();await refresh();});
 let launchTool=null, toolRows=[];
 function openTerminal(tool=null){
   launchTool=typeof tool==='string'?tool:null;
