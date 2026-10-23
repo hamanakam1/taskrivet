@@ -431,6 +431,9 @@ class Ledger:
         Everything here is recorded ledger state. Reported usage, recorded
         evidence, and source labels are operator-supplied records, not measured
         facts, and nothing in this view grants execution authority.
+
+        Explicit session IDs must belong to the requested task. Omitting the
+        session ID selects its latest attempt, if any.
         """
         self.reconcile()
         task = self.task(task_id)
@@ -441,7 +444,9 @@ class Ledger:
             for r in self.db.execute("SELECT * FROM sessions WHERE task_id=? ORDER BY created", (task_id,))
         ]
         current = next((s for s in sessions if s["id"] == session_id), None)
-        if current is None and sessions:
+        if session_id is not None and current is None:
+            raise ValueError("session does not belong to this task")
+        if session_id is None and sessions:
             current = sessions[-1]
         checkpoints = [
             dict(r)
@@ -451,15 +456,17 @@ class Ledger:
                 (task_id,),
             )
         ]
-        context = [
-            dict(r) | {"expired": r["expires"] is not None and r["expires"] <= now}
-            for r in self.db.execute(
-                "SELECT t.hash,t.source,t.priority,t.expires,LENGTH(c.body) AS bytes"
-                " FROM task_context t JOIN contexts c ON c.hash=t.hash WHERE t.task_id=?"
-                " ORDER BY t.priority DESC,t.hash",
-                (task_id,),
-            )
-        ]
+        context = []
+        for row in self.db.execute(
+            "SELECT t.hash,t.source,t.priority,t.expires,c.body"
+            " FROM task_context t JOIN contexts c ON c.hash=t.hash WHERE t.task_id=?"
+            " ORDER BY t.priority DESC,t.hash",
+            (task_id,),
+        ):
+            entry = dict(row)
+            entry["bytes"] = len(entry.pop("body").encode("utf-8"))
+            entry["expired"] = row["expires"] is not None and row["expires"] <= now
+            context.append(entry)
         failures = [
             dict(r)
             for r in self.db.execute(

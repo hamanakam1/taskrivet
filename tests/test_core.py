@@ -1,6 +1,7 @@
 import concurrent.futures
 import json
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -246,6 +247,58 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(view['claims'][0]['status'], 'running')
         self.assertEqual(view['claims'][0]['shared_keys'], ['repo/search'])
 
+    def test_detail_selects_requested_attempt_or_latest_when_omitted(self):
+        self.assertIsNone(self.l.detail('a')['session'])
+        previous = self.start()
+        self.l.fail(previous, 'tool', 'Compiler unavailable')
+        self.l.decide('a', 'retry', 'Old worker stopped; compiler available')
+        current = self.start()
+        self.assertEqual(self.l.detail('a', previous)['session']['id'], previous)
+        self.assertEqual(self.l.detail('a', current)['session']['id'], current)
+        self.assertEqual(self.l.detail('a')['session']['id'], current)
+
+    def test_detail_rejects_unknown_or_foreign_explicit_session(self):
+        self.start()
+        self.l.add_task('other', 'Other change', 'Tests pass', scope=['repo/other'])
+        foreign = self.l.start('other', 'another-worker')['session_id']
+        self.l.add_task('unstarted', 'Future work', 'Tests pass')
+        before = self.l.events()
+        for task in ('a', 'unstarted'):
+            for session in ('missing', '', foreign):
+                with self.subTest(task=task, session=session):
+                    with self.assertRaisesRegex(ValueError, 'session does not belong to this task'):
+                        self.l.detail(task, session)
+        self.assertEqual(self.l.events(), before)
+
+    def test_detail_reports_utf8_context_bytes_including_null_characters(self):
+        for body in ('reference', '界🙂', 'before\0after', '界🙂\0after'):
+            with self.subTest(body=body):
+                added = self.l.add_context('a', body, 'synthetic source')
+                context = {entry['hash']: entry for entry in self.l.detail('a')['context']}
+                self.assertEqual(context[added['hash']]['bytes'], len(body.encode('utf-8')))
+                self.assertEqual(context[added['hash']]['bytes'], added['bytes'])
+                self.assertNotIn('body', context[added['hash']])
+
+    def test_detail_context_bytes_do_not_depend_on_database_encoding(self):
+        path = Path(self.temp.name) / 'utf16.sqlite'
+        database = sqlite3.connect(path)
+        try:
+            database.execute("PRAGMA encoding='UTF-16le'")
+            database.execute('CREATE TABLE encoding_fixture(value TEXT)')
+        finally:
+            database.close()
+        ledger = Ledger(path)
+        try:
+            ledger.add_task('encoded', 'Fix search', 'Tests pass')
+            body = '界🙂\0after'
+            added = ledger.add_context('encoded', body, 'synthetic source')
+            context = ledger.detail('encoded')['context'][0]
+            self.assertEqual(context['bytes'], added['bytes'])
+            self.assertEqual(context['bytes'], len(body.encode('utf-8')))
+            self.assertNotIn('body', context)
+        finally:
+            ledger.close()
+
     def test_detail_of_unknown_task_is_an_error(self):
         with self.assertRaises(ValueError): self.l.detail('missing')
 
@@ -261,6 +314,12 @@ class LedgerTest(unittest.TestCase):
         result = subprocess.run(cmd + ['detail', '--task', 'missing'], capture_output=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn('unknown task', json.loads(result.stderr)['error'])
+        result = subprocess.run(cmd + ['detail', '--task', 'a', '--session', 'missing'], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, b'')
+        self.assertEqual(json.loads(result.stderr), {
+            'error': 'session does not belong to this task', 'type': 'ValueError',
+        })
 
 
 if __name__ == '__main__':
