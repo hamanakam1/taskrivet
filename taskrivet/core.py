@@ -110,7 +110,8 @@ class Ledger:
         ]:
             required(value, name)
         positive(token_budget, "token_budget")
-        scope = scope or [task_id]
+        if scope is None:
+            scope = [task_id]
         if not isinstance(scope, list) or not scope:
             raise ValueError("scope must be a nonempty list of resource keys")
         for key in scope:
@@ -355,8 +356,8 @@ class Ledger:
         positive(ttl, "ttl")
         if cost not in ("zero_incremental", "paid", "unknown"):
             raise ValueError("invalid cost classification")
-        if not kinds:
-            raise ValueError("at least one task kind is required")
+        if not isinstance(kinds, list) or not kinds:
+            raise ValueError("kinds must be a nonempty list of task kinds")
         for kind in kinds:
             required(kind, "kind")
         with self.transaction():
@@ -373,7 +374,12 @@ class Ledger:
         options: list[dict[str, Any]] = []
         for row in self.db.execute("SELECT * FROM profiles ORDER BY id"):
             reasons: list[str] = []
-            if task["kind"] not in json.loads(row["kinds"]):
+            kinds = json.loads(row["kinds"])
+            if not isinstance(kinds, list) or not kinds or any(
+                not isinstance(kind, str) or not kind.strip() for kind in kinds
+            ):
+                reasons.append("invalid declared task kinds; redeclare the profile")
+            elif task["kind"] not in kinds:
                 reasons.append("task kind unsupported")
             if row["context_limit"] < required_context:
                 reasons.append("insufficient declared context capacity")

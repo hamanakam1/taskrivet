@@ -56,6 +56,22 @@ class LedgerTest(unittest.TestCase):
         self.l.add_task('c', 'Independent change', 'Tests pass', scope=['repo/other'])
         self.l.start('c', 'independent')
 
+    def test_scope_defaults_only_when_omitted(self):
+        for scope in ([], '', {}, (), False, 0, 'repo/search', ['']):
+            with self.subTest(scope=scope):
+                before = self.l.events()
+                with self.assertRaises(ValueError):
+                    self.l.add_task('invalid', 'Fix search', 'Tests pass', scope=scope)
+                self.assertEqual(self.l.events(), before)
+                with self.assertRaisesRegex(ValueError, 'unknown task'):
+                    self.l.task('invalid')
+        task = self.l.add_task('default', 'Fix search', 'Tests pass')
+        self.assertEqual(json.loads(task['scope']), ['default'])
+        self.l.add_task('overlap', 'Other work', 'Tests pass', scope=['default'])
+        self.l.start('default', 'worker')
+        with self.assertRaises(Conflict):
+            self.l.start('overlap', 'another')
+
     def test_expiry_blocks_until_reconciled_and_preserves_scope(self):
         sid = self.start()
         self.l.db.execute('UPDATE sessions SET lease_until=? WHERE id=?', (time.time()-1, sid))
@@ -134,6 +150,34 @@ class LedgerTest(unittest.TestCase):
         self.assertFalse(result['execution_authorized'])
         self.assertEqual([r['profile'] for r in result['options'] if r['eligible']], ['local'])
         self.assertTrue(all(r['quality_estimate'] is None for r in result['options']))
+
+    def test_profile_kinds_reject_malformed_collections_without_mutation(self):
+        self.l.profile('existing', ['design'], 8000, 'zero_incremental')
+        for kinds in ('decode', {'code': True}, ('code',), [], None, False, 1, ['']):
+            for profile_id in ('new', 'existing'):
+                with self.subTest(kinds=kinds, profile_id=profile_id):
+                    before = self.l.events()
+                    with self.assertRaises(ValueError):
+                        self.l.profile(profile_id, kinds, 8000, 'zero_incremental')
+                    self.assertEqual(self.l.events(), before)
+                    options = self.l.route('a')['options']
+                    self.assertEqual([option['profile'] for option in options], ['existing'])
+                    self.assertFalse(options[0]['eligible'])
+        self.l.profile('existing', ['design', 'code'], 8000, 'zero_incremental')
+        route = self.l.route('a')
+        self.assertTrue(route['options'][0]['eligible'])
+        self.assertFalse(route['execution_authorized'])
+
+    def test_routing_excludes_malformed_legacy_kinds(self):
+        self.l.profile('legacy', ['code'], 8000, 'zero_incremental')
+        for kinds in ('decode', {'code': True}, [], None, 1, ['code', '']):
+            with self.subTest(kinds=kinds):
+                self.l.db.execute('UPDATE profiles SET kinds=? WHERE id=?',
+                                  (json.dumps(kinds), 'legacy'))
+                route = self.l.route('a')
+                self.assertFalse(route['options'][0]['eligible'])
+                self.assertIn('invalid declared task kinds', route['options'][0]['reasons'][0])
+                self.assertFalse(route['execution_authorized'])
 
     def test_failure_recurrence_and_event_cursor(self):
         for _ in range(2):
