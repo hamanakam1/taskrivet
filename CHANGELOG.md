@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Reserve room for the handback marker line inside the 4,000-byte report budget,
+  so a ticket service that caps the whole note cannot cut the marker off.
+- Record the run folder in the `agent.launched` event and the `links` view.
+
 ## 0.3.2 — 2026-10-24
 
 - Add ticket-aware terminal badges with friendly objective labels and explicit standalone state.

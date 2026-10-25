@@ -10,7 +10,8 @@ from unittest.mock import patch
 from synthetic import FakeTicketService, cleanup, short_dir, stop_service, ticket, wait_for_exit, write_adapter, write_tool
 from taskrivet.core import Conflict, Ledger
 from taskrivet.loop import (
-    HandbackUnconfirmed, HoldsPending, handback, import_snapshot, links_view, report_body, sessions_view, work)
+    MARKER_RESERVE, REPORT_BYTES, HandbackUnconfirmed, HoldsPending, handback, import_snapshot, links_view,
+    report_body, sessions_view, work)
 from taskrivet.session_client import SessionError
 from taskrivet.tickets import get_ticket
 
@@ -88,6 +89,7 @@ class WorkTests(unittest.TestCase):
         self.assertEqual(self.ledger.task_source(r["task_id"])["acknowledged"], [NO_AUTO])
         launched = [e for e in self.ledger.events() if e["type"] == "agent.launched"]
         self.assertEqual(launched[-1]["data"]["terminal"], r["terminal"]["id"])
+        self.assertEqual(launched[-1]["data"]["run_dir"], r["run_dir"])
         link = links_view(self.ledger, self.db, "SYN-2")["links"][0]
         self.assertEqual((link["agent"]["tool"], link["agent"]["terminal_state"], link["agent"]["exit_code"]),
                          ("codex", "exited", 0))
@@ -158,6 +160,15 @@ class HandbackTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Nothing to report"):
             self.send()
         self.assertIn("Operator note: checked by hand", report_body(self.ledger, self.task, "checked by hand"))
+
+    def test_report_leaves_room_for_the_marker_line(self):
+        sid = self.ledger.start(self.task, "worker")["session_id"]
+        self.ledger.checkpoint(sid, "x" * 9000, "evidence", "next", 10)
+        body = report_body(self.ledger, self.task)
+        self.assertLessEqual(len(body.encode("utf-8")), REPORT_BYTES - MARKER_RESERVE)
+        marker = "taskrivet-handback:" + "0" * 16
+        self.assertLessEqual(len(("\n\n" + marker).encode("utf-8")), MARKER_RESERVE)
+        self.assertLessEqual(len((body + "\n\n" + marker).encode("utf-8")), REPORT_BYTES)
 
     def test_preview_never_calls_the_adapter(self):
         self.finish()

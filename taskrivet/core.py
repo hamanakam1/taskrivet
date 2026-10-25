@@ -791,7 +791,8 @@ class Ledger:
             if launched is not None:
                 data = json.loads(launched["data"])
                 agent = {"tool": data.get("tool"), "terminal": data.get("terminal"),
-                         "session": data.get("session"), "launched": launched["created"]}
+                         "session": data.get("session"), "launched": launched["created"],
+                         "run_dir": data.get("run_dir")}
             rows.append({
                 "ticket_key": r["ticket_key"],
                 "task_id": tid,
