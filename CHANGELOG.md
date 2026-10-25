@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-10-24
+
+- Add the supervised ticket loop and shared local session service to the desktop alpha.
+- Keep ticket selection, execution authorization, handback, and acceptance as separate gates.
+- Publish the Apple Silicon desktop package and Python CLI artifacts from the verified release commit.
 
 - Added a supervised ticket loop to the CLI: `tickets`, `ticket`, `ticket-import`,
   `work`, `links`, and `handback`. You pick the ticket and the agent, holds must be
