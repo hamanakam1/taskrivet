@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add a native SwiftUI Mac workspace under macos/: ticket loop, task inspector,
+  session attach, and embedded PTY terminals via SwiftTerm, with ledger reads
+  through CLI JSON only and all writes left to interactive operator terminals.
 - Reserve room for the handback marker line inside the 4,000-byte report budget,
   so a ticket service that caps the whole note cannot cut the marker off.
 - Record the run folder in the `agent.launched` event and the `links` view.

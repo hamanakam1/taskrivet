@@ -56,6 +56,11 @@ has runtime dependencies; the Python coordination core remains standard-library-
 See [desktop setup and lifecycle](docs/desktop.md). Closing a window keeps active
 shells running in Taskrivet’s independent local session service. Quitting and reopening the desktop reconnects to them. Use Stop terminal to end a process.
 
+A native SwiftUI rebuild lives in the macos/ directory (scripts/build_app.sh
+assembles an unsigned developer Taskrivet.app). It covers the ticket loop, the
+task inspector, and terminal tabs; the Electron workspace above remains the
+reference until the native app reaches parity. See docs/macos.md.
+
 ## Session inspector and terminal workspace
 
 Every session keeps its record beside it. The right-hand column shows what the
