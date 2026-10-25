@@ -3,8 +3,10 @@
 Taskrivet's primary workflow is to take eligible tickets through tool selection,
 context preparation, authorized execution, verification, and review. The current
 implementation provides local task records, context packets, executable discovery,
-and persistent terminal sessions. Automated ticket selection and dashboard dispatch
-are not implemented by this document.
+and persistent terminal sessions. A [supervised ticket loop](ticket-loop.md) lets the
+operator choose one ticket and one agent, and posts a report only after the operator
+confirms it. Automated ticket selection and dashboard dispatch are not implemented
+by this document.
 
 ## Independence and authority
 
@@ -33,6 +35,9 @@ remain authoritative. Historical access or an installed executable is not a gran
 - `publishEvidence(attemptId, sequence, evidence)`: idempotent progress and artifacts.
 - `requestReview(attemptId, acceptanceEvidence)`: propose review, never silently mark Done.
 - `release(lease, reason)`: release only after execution is stopped or reconciled.
+
+The supervised loop uses a narrower write protocol: find and post one marked report.
+It has no claim, renew, or release operations. See [ticket-loop.md](ticket-loop.md).
 
 Adapters need contract tests for duplicate dispatch, stale revisions, hold changes,
 lease expiry, offline operation, unknown write acknowledgements, and retry safety.
@@ -84,7 +89,8 @@ condition or approach, and retain cumulative cost and token accounting.
 1. Taskrivet-owned session service and reconnection (implemented separately).
 2. Read-only ticket-service adapter and prerequisite preview with source freshness (implemented; no admission authority).
 3. Atomic claims and scoped grants with adapter contract tests.
-4. Supervised single-ticket execution, evidence return, and manual acceptance.
+4. Supervised single-ticket execution, evidence return, and manual acceptance (implemented
+   as the operator-driven [ticket loop](ticket-loop.md), without source claims).
 5. Measured routing, constrained parallel work, budgets, and bounded recovery.
 
 Open-source users can supply their own adapter and local credentials. The public

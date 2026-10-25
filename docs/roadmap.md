@@ -16,9 +16,12 @@ remains the short list of what is still proposed.
    calls merely to discover inventory; no credential copying between tools.
 3. **Dashboard bridge.** External task mapping, bounded imports, event cursors,
    source revisions, explicit admission, independent result verification, and
-   authoritative readback. No second scheduler.
+   authoritative readback. No second scheduler. The supervised ticket loop covers
+   bounded imports, source revisions, and report readback; explicit admission and
+   independent verification remain.
 4. **Useful terminal UI.** Task and session overview, pending decisions, context
    inspection, failure drilldown, attach links, pause/cancel through the same API.
+   The CLI has `links`, `sessions`, `attach`, and `watch`; pause and cancel do not exist yet.
 5. **Context distribution.** Role-specific retrieval, revision invalidation,
    dependency handoffs, sensitive-content classification, tokenizer adapters,
    budget allocation, and citations. Never broadcast all transcripts to all agents.

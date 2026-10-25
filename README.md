@@ -37,8 +37,10 @@ Measure useful outcomes instead of how many agents are busy.
 
 **Status: v0.3 desktop alpha.** A Mac app with real embedded terminal tabs,
 plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
-inspect bounded context, track recurring failures, and discover installed CLI tools. Terminal commands are controlled by you; automated model dispatch,
-verified billing and automated external-ticket dispatch are future work. A read-only local ticket-service preview is available. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
+inspect bounded context, track recurring failures, and discover installed CLI tools. The CLI can also
+work one ticket you choose from a local ticket service: it opens the agent you pick in a persistent
+terminal and posts a report back only when you confirm. Terminal commands are controlled by you;
+automated ticket selection and dispatch, model dispatch, and verified billing are future work. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
 
 ## Mac desktop app
 
@@ -231,7 +233,8 @@ python3 -m taskrivet retry demo --reason 'Old worker stopped; compiler installed
 
 Those commands illustrate the failure path for an active session, not a continuation
 of the already accepted quick-start task. `cancel` applies to ready, blocked, or
-review tasks after reconciliation. The desktop can stop its own terminal after confirmation; the CLI does not control processes.
+review tasks after reconciliation. The desktop can stop its own terminal after confirmation.
+The CLI opens agent terminals only through `work` and does not stop processes.
 
 ## Model and tool routing
 
@@ -242,7 +245,7 @@ Eligible profiles remain unranked: Taskrivet does not invent quality estimates.
 A declaration is not proof of entitlement, authentication, health, or available
 quota, and an eligible result is never execution authorization.
 
-The proposed primary workflow is described in the [ticket execution contract](docs/ticket-execution.md): eligible ticket → qualified tool → bounded context and scoped access → execution → verified evidence → source-owned review. This contract is not an implemented dashboard integration.
+The proposed primary workflow is described in the [ticket execution contract](docs/ticket-execution.md): eligible ticket → qualified tool → bounded context and scoped access → execution → verified evidence → source-owned review. The [supervised ticket loop](docs/ticket-loop.md) implements its operator-driven part: you choose the ticket and the tool, and you confirm the report. Atomic claims, scoped access, and automated dispatch remain proposed.
 
 The long-term objective is **accepted outcomes per unit of total effort**:
 operator time, rework, latency, tokens, credits, and cash. Subscription utilization
@@ -303,6 +306,40 @@ are disabled, and responses are bounded to 8 MiB with a ten-second timeout.
 The adapter is optional. Taskrivet's local queue and terminal service remain usable
 without any external ticket service. Other ticket systems can implement the proposed adapter contract.
 Tool recommendations, atomic claims, scoped grants, and dispatch are still future work.
+
+## Supervised ticket loop
+
+Work one ticket at a time from the command line. You choose the ticket and the agent;
+Taskrivet keeps the record around them.
+
+```sh
+python3 -m taskrivet config set ticket_service.origin http://127.0.0.1:8080
+python3 -m taskrivet --format table tickets --limit 20
+python3 -m taskrivet --format table ticket DEMO-42
+python3 -m taskrivet work DEMO-42 --tool codex --ack
+python3 -m taskrivet attach 3f9c1a2b
+python3 -m taskrivet handback DEMO-42            # preview the report
+python3 -m taskrivet handback DEMO-42 --confirm  # post it through your adapter
+```
+
+`work` imports the ticket as a local task, starts a ledger session, writes a private run
+folder with a bounded context file, and opens the agent in a terminal of the same session
+service the desktop uses, so the tab appears in both. Holds such as a `no-auto` tag or an
+unverified readiness verdict are shown, and `work` refuses until you acknowledge them with
+`--ack`. Acknowledging records your decision; it clears nothing. Taskrivet never changes a
+ticket's stage, tags, or holds, and never marks it done. The only ticket write is a report
+you confirm, posted through an adapter you configure, read back, and protected against
+duplicates by a stable marker.
+
+`sessions`, `attach`, `links`, and `watch` follow the work, `doctor` checks the setup, and
+`launchers` lists the agents you can pick. Every command prints JSON by default and a
+readable view with `--format table`. Settings live in a private mode-0600 file,
+`~/.taskrivet/config.json`. The [ticket loop guide](docs/ticket-loop.md) covers settings,
+holds, launchers, terminals, and the adapter protocol.
+
+The agent runs as you, with your normal permissions, and may send the ticket text to its
+model provider. Ticket selection, source claims, scoped access grants, and unattended
+dispatch are not implemented.
 
 ## GitHub activity and distribution
 
