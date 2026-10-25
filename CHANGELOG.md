@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Added a supervised ticket loop to the CLI: `tickets`, `ticket`, `ticket-import`,
+  `work`, `links`, and `handback`. You pick the ticket and the agent, holds must be
+  acknowledged before a launch, and nothing changes a ticket's stage, tags, or holds.
+  A report is posted only with `handback --confirm`, through your own adapter, with
+  readback and a stable marker against duplicates. See `docs/ticket-loop.md`.
+- Added `sessions` and `attach` (replay, follow, Ctrl-] to detach) for the per-ledger
+  terminal service, and a standard-library Python session service that the CLI starts
+  when the desktop has not. The CLI and the desktop see the same terminals.
+- Added `doctor`, `watch`, `launchers`, and `config`; a private mode-0600 config file for
+  the ticket-service origin, report adapter, launchers, and folders; and
+  `--format table` (or `TASKRIVET_FORMAT=table`) for readable output. JSON stays the
+  default. Errors are JSON on stderr with exit status 2.
+- Ledger schema 2 adds ticket bindings and report records. Existing ledgers gain the
+  new tables in place, and earlier versions keep reading them.
 - Added a session inspector beside every terminal. The focused pane's ledger
   record — session, task, resource scope, bounded context, checkpoints,
   failures, and event trail — is read from one local `taskrivet detail` view.
@@ -26,7 +40,8 @@ This alpha still does not read OpenCode transcripts, messages, credentials, or
 provider settings, and it does not write to an OpenCode session. A resumed session is
 a live agent process, not an isolated copy. The session inspector shows recorded
 values: reported usage is not measured cost, recorded evidence is not verified
-evidence, and nothing shown there authorizes execution.
+evidence, and nothing shown there authorizes execution. The ticket loop does not
+select work, claim tickets at their source, sandbox agents, or run them unattended.
 
 ## 0.3.0 — 2026-10-21
 

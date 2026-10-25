@@ -25,6 +25,15 @@ The event feed has monotonic sequence numbers. Consumers retain their cursor and
 must deduplicate replayed events. SQLite is for one local host; multi-host writes
 and untrusted clients are outside the supported deployment model.
 
+## Supervised ticket loop
+
+The CLI's ticket loop binds one operator-chosen ticket revision to a local task
+(schema 2 `task_sources`), records report deliveries (`handbacks`), and opens the
+chosen agent through the per-ledger session service. It reads the ticket service over
+loopback HTTP and writes to a ticket only through an operator-configured adapter after
+confirmation. It has no admission, claim, isolation, or unattended dispatch, so it is
+not the execution service proposed below. See [ticket-loop.md](ticket-loop.md).
+
 ## Proposed execution service
 
 A future service will accept explicit work orders from one authority. Work orders

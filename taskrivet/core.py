@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import hashlib
 import json
 from pathlib import Path
+import re
 import sqlite3
 import time
 import uuid
@@ -15,6 +16,10 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
+SCHEMA_VERSION = 2
+OPEN_STATES = ("ready", "running", "blocked", "review")
+
+
 def positive(value: Any, name: str) -> None:
     if type(value) is not int or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
@@ -23,6 +28,10 @@ def positive(value: Any, name: str) -> None:
 def required(value: Any, name: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be nonempty text")
+
+
+def _slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:100] or "ticket"
 
 
 class Ledger:
@@ -67,6 +76,37 @@ class Ledger:
             seq INTEGER PRIMARY KEY, type TEXT NOT NULL, task_id TEXT,
             data TEXT NOT NULL, created REAL NOT NULL);
         """)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Additive schema changes; older readers keep working on migrated files."""
+        if self.schema_version() >= SCHEMA_VERSION:
+            return
+        try:
+            self.db.executescript("""
+            BEGIN IMMEDIATE;
+            CREATE TABLE IF NOT EXISTS task_sources (
+                task_id TEXT PRIMARY KEY REFERENCES tasks(id), source TEXT NOT NULL,
+                ticket_key TEXT NOT NULL, origin TEXT NOT NULL, revision TEXT NOT NULL,
+                title TEXT NOT NULL, holds TEXT NOT NULL, acknowledged TEXT,
+                imported REAL NOT NULL, refreshed REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS task_sources_key ON task_sources(source, ticket_key);
+            CREATE TABLE IF NOT EXISTS handbacks (
+                id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+                ticket_key TEXT NOT NULL, marker TEXT NOT NULL UNIQUE, body TEXT NOT NULL,
+                status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT,
+                created REAL NOT NULL, updated REAL NOT NULL, delivered REAL);
+            CREATE INDEX IF NOT EXISTS handbacks_task ON handbacks(task_id, created);
+            PRAGMA user_version=2;
+            COMMIT;
+            """)
+        except BaseException:
+            if self.db.in_transaction:
+                self.db.execute("ROLLBACK")
+            raise
+
+    def schema_version(self) -> int:
+        return self.db.execute("PRAGMA user_version").fetchone()[0]
 
     def close(self) -> None:
         self.db.close()
@@ -102,6 +142,19 @@ class Ledger:
         scope: list[str] | None = None,
         token_budget: int = 8000,
     ) -> dict[str, Any]:
+        with self.transaction():
+            self._insert_task(task_id, objective, acceptance, kind, scope, token_budget)
+        return self.task(task_id)
+
+    def _insert_task(
+        self,
+        task_id: str,
+        objective: str,
+        acceptance: str,
+        kind: str,
+        scope: list[str] | None,
+        token_budget: int,
+    ) -> None:
         for value, name in [
             (task_id, "id"),
             (objective, "objective"),
@@ -115,13 +168,11 @@ class Ledger:
             raise ValueError("scope must be a nonempty list of resource keys")
         for key in scope:
             required(key, "scope key")
-        with self.transaction():
-            self.db.execute(
-                "INSERT INTO tasks VALUES (?,?,?,?,?,'ready',?,?)",
-                (task_id, objective, acceptance, kind, json.dumps(sorted(set(scope))), token_budget, time.time())
-            )
-            self.event("task.created", task_id)
-        return self.task(task_id)
+        self.db.execute(
+            "INSERT INTO tasks VALUES (?,?,?,?,?,'ready',?,?)",
+            (task_id, objective, acceptance, kind, json.dumps(sorted(set(scope))), token_budget, time.time())
+        )
+        self.event("task.created", task_id)
 
     def _failure(self, task: str, session: str, category: str, summary: str) -> None:
         digest = hashlib.sha256(f"{category}:{summary}".encode()).hexdigest()[:16]
@@ -281,6 +332,11 @@ class Ledger:
         priority: int = 0,
         ttl: int | None = None,
     ) -> dict[str, Any]:
+        with self.transaction():
+            digest = self._attach_context(task_id, body, source, priority, ttl)
+        return {"hash": digest, "bytes": len(body.encode())}
+
+    def _attach_context(self, task_id: str, body: str, source: str, priority: int, ttl: int | None) -> str:
         required(body, "body")
         required(source, "source")
         if type(priority) is not int:
@@ -288,15 +344,14 @@ class Ledger:
         if ttl is not None:
             positive(ttl, "ttl")
         digest = hashlib.sha256(body.encode()).hexdigest()
-        with self.transaction():
-            self.task(task_id)
-            self.db.execute("INSERT OR IGNORE INTO contexts VALUES (?,?)", (digest, body))
-            self.db.execute(
-                "INSERT INTO task_context VALUES (?,?,?,?,?) ON CONFLICT(task_id,hash) DO UPDATE SET source=excluded.source,priority=excluded.priority,expires=excluded.expires",
-                (task_id, digest, source, priority, time.time() + ttl if ttl else None)
-            )
-            self.event("context.attached", task_id, hash=digest, source=source)
-        return {"hash": digest, "bytes": len(body.encode())}
+        self.task(task_id)
+        self.db.execute("INSERT OR IGNORE INTO contexts VALUES (?,?)", (digest, body))
+        self.db.execute(
+            "INSERT INTO task_context VALUES (?,?,?,?,?) ON CONFLICT(task_id,hash) DO UPDATE SET source=excluded.source,priority=excluded.priority,expires=excluded.expires",
+            (task_id, digest, source, priority, time.time() + ttl if ttl else None)
+        )
+        self.event("context.attached", task_id, hash=digest, source=source)
+        return digest
 
     def pack(self, task_id: str, max_bytes: int = 12000) -> dict[str, Any]:
         positive(max_bytes, "max_bytes")
@@ -513,5 +568,260 @@ class Ledger:
             "provenance": (
                 "Ledger records only. Reported usage, evidence, and context source labels are "
                 "operator-supplied; they are not measured cost, verified evidence, or authority."
+            ),
+        }
+
+    def record(self, kind: str, task_id: str, **data: Any) -> None:
+        """Append an operator-visible event for an existing task."""
+        required(kind, "event type")
+        with self.transaction():
+            self.task(task_id)
+            self.event(kind, task_id, **data)
+
+    def _free_task_id(self, base: str) -> str:
+        base = base[:120]
+        for n in range(1, 1000):
+            candidate = base if n == 1 else f"{base}-{n}"
+            if self.db.execute("SELECT 1 FROM tasks WHERE id=?", (candidate,)).fetchone() is None:
+                return candidate
+        raise Conflict("too many tasks already use this ticket key")
+
+    def import_ticket(
+        self,
+        *,
+        key: str,
+        origin: str,
+        revision: str,
+        title: str,
+        objective: str,
+        acceptance: str,
+        context: str,
+        holds: list[str],
+        acknowledged: bool = False,
+        scope: list[str] | None = None,
+        kind: str = "code",
+        token_budget: int = 400_000,
+        refresh: bool = False,
+        source: str = "ticket-service",
+    ) -> dict[str, Any]:
+        """Bind one ticket revision to a local task; idempotent while the task is open.
+
+        Import never launches anything. Holds are recorded as observed. An
+        acknowledgement records the operator's own decision; it clears nothing.
+        """
+        for value, name in [(key, "ticket key"), (origin, "origin"), (revision, "revision"), (source, "source")]:
+            required(value, name)
+        if not isinstance(holds, list) or any(not isinstance(h, str) for h in holds):
+            raise ValueError("holds must be a list of text")
+        label = f"{source}:{key}@{revision[:12]}"
+        holds_json = json.dumps(holds)
+        ack_json = json.dumps(holds) if acknowledged else None
+        self.reconcile()
+        with self.transaction():
+            now = time.time()
+            row = self.db.execute(
+                "SELECT s.task_id, s.revision, s.acknowledged FROM task_sources s JOIN tasks t ON t.id=s.task_id"
+                " WHERE s.source=? AND s.ticket_key=? AND t.status IN (?,?,?,?)"
+                " ORDER BY s.imported DESC LIMIT 1",
+                (source, key, *OPEN_STATES),
+            ).fetchone()
+            refreshed = False
+            if row is not None:
+                task_id = row["task_id"]
+                earlier = json.loads(row["acknowledged"]) if row["acknowledged"] else None
+                if not acknowledged and earlier is not None and all(h in earlier for h in holds):
+                    ack_json = row["acknowledged"]
+                if row["revision"] != revision:
+                    if not refresh:
+                        raise Conflict(
+                            f"ticket {key} changed since task {task_id} was imported;"
+                            " re-run with --refresh to attach the new revision"
+                        )
+                    self._attach_context(task_id, context, label, 100, None)
+                    self.event("source.refreshed", task_id, ticket=key, revision=revision, previous=row["revision"])
+                    refreshed = True
+                self.db.execute(
+                    "UPDATE task_sources SET revision=?,title=?,holds=?,acknowledged=?,refreshed=? WHERE task_id=?",
+                    (revision, title[:500], holds_json, ack_json, now, task_id),
+                )
+                created = False
+            else:
+                task_id = self._free_task_id("ticket-" + _slug(key))
+                self._insert_task(task_id, objective, acceptance, kind,
+                                  sorted(set([f"ticket:{key}"] + list(scope or []))), token_budget)
+                self._attach_context(task_id, context, label, 50, None)
+                self.db.execute(
+                    "INSERT INTO task_sources VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (task_id, source, key, origin, revision, title[:500], holds_json, ack_json, now, now),
+                )
+                self.event("source.imported", task_id, ticket=key, revision=revision)
+                created = True
+            if acknowledged and holds:
+                self.event("holds.acknowledged", task_id, ticket=key, holds=holds)
+        return {"task_id": task_id, "ticket": key, "revision": revision, "created": created,
+                "refreshed": refreshed, "task": self.task(task_id)}
+
+    def ticket_tasks(self, ticket_key: str, source: str = "ticket-service") -> list[str]:
+        return [r[0] for r in self.db.execute(
+            "SELECT task_id FROM task_sources WHERE source=? AND ticket_key=? ORDER BY imported, rowid",
+            (source, ticket_key))]
+
+    def ticket_binding(self, ticket_key: str, source: str = "ticket-service") -> dict[str, Any] | None:
+        """The open task bound to a ticket, if there is one."""
+        row = self.db.execute(
+            "SELECT s.task_id FROM task_sources s JOIN tasks t ON t.id=s.task_id"
+            " WHERE s.source=? AND s.ticket_key=? AND t.status IN (?,?,?,?)"
+            " ORDER BY s.imported DESC LIMIT 1",
+            (source, ticket_key, *OPEN_STATES),
+        ).fetchone()
+        return self.task_source(row[0]) if row else None
+
+    def last_event(self) -> int:
+        return self.db.execute("SELECT COALESCE(MAX(seq),0) FROM events").fetchone()[0]
+
+    def task_source(self, task_id: str) -> dict[str, Any] | None:
+        row = self.db.execute("SELECT * FROM task_sources WHERE task_id=?", (task_id,)).fetchone()
+        if row is None:
+            return None
+        return dict(row) | {
+            "holds": json.loads(row["holds"]),
+            "acknowledged": json.loads(row["acknowledged"]) if row["acknowledged"] else None,
+        }
+
+    def handback(self, handback_id: str) -> dict[str, Any]:
+        row = self.db.execute("SELECT * FROM handbacks WHERE id=?", (handback_id,)).fetchone()
+        if row is None:
+            raise ValueError("unknown handback")
+        return dict(row)
+
+    def handbacks(self, task_id: str) -> list[dict[str, Any]]:
+        return [dict(r) for r in self.db.execute(
+            "SELECT * FROM handbacks WHERE task_id=? ORDER BY created, rowid", (task_id,))]
+
+    def stage_handback(self, task_id: str, body: str) -> dict[str, Any]:
+        """Queue or refresh the one pending report for a ticket-linked task.
+
+        The marker stays stable across retries, so a delivery whose response
+        was lost can be found on the ticket before anything is posted again.
+        """
+        required(body, "body")
+        with self.transaction():
+            linked = self.db.execute("SELECT ticket_key FROM task_sources WHERE task_id=?", (task_id,)).fetchone()
+            if linked is None:
+                raise ValueError(f"task {task_id} is not linked to a ticket")
+            now = time.time()
+            row = self.db.execute(
+                "SELECT id FROM handbacks WHERE task_id=? AND status='pending' ORDER BY created DESC LIMIT 1",
+                (task_id,),
+            ).fetchone()
+            if row is not None:
+                handback_id = row["id"]
+                self.db.execute("UPDATE handbacks SET body=?,updated=? WHERE id=?", (body, now, handback_id))
+            else:
+                handback_id = uuid.uuid4().hex
+                self.db.execute(
+                    "INSERT INTO handbacks(id,task_id,ticket_key,marker,body,status,created,updated)"
+                    " VALUES (?,?,?,?,?,'pending',?,?)",
+                    (handback_id, task_id, linked["ticket_key"], "taskrivet-handback:" + handback_id[:16],
+                     body, now, now),
+                )
+                self.event("handback.queued", task_id, handback=handback_id)
+        return self.handback(handback_id)
+
+    def settle_handback(
+        self, handback_id: str, delivered: bool, error: str | None = None, note: str | None = None
+    ) -> dict[str, Any]:
+        with self.transaction():
+            row = self.handback(handback_id)
+            now = time.time()
+            if delivered:
+                self.db.execute(
+                    "UPDATE handbacks SET status='delivered',attempts=attempts+1,last_error=NULL,updated=?,delivered=?"
+                    " WHERE id=?",
+                    (now, now, handback_id),
+                )
+                self.event("handback.delivered", row["task_id"], handback=handback_id, note=note)
+            else:
+                message = (error or "delivery not confirmed")[:500]
+                self.db.execute(
+                    "UPDATE handbacks SET attempts=attempts+1,last_error=?,updated=? WHERE id=?",
+                    (message, now, handback_id),
+                )
+                self.event("handback.unconfirmed", row["task_id"], handback=handback_id, error=message[:300])
+        return self.handback(handback_id)
+
+    def links(self, ticket_key: str | None = None, limit: int = 200) -> dict[str, Any]:
+        """Read view joining ticket bindings to their latest session and handback."""
+        positive(limit, "limit")
+        self.reconcile()
+        now = time.time()
+        query = "SELECT s.*, t.status AS task_status FROM task_sources s JOIN tasks t ON t.id=s.task_id"
+        params: list[Any] = []
+        if ticket_key:
+            query += " WHERE s.ticket_key=?"
+            params.append(ticket_key)
+        query += " ORDER BY s.refreshed DESC LIMIT ?"
+        params.append(min(limit, 1000))
+        rows = []
+        for r in self.db.execute(query, params).fetchall():
+            tid = r["task_id"]
+            session = self.db.execute(
+                "SELECT id,owner,status,lease_until,tokens FROM sessions WHERE task_id=? ORDER BY created DESC LIMIT 1",
+                (tid,),
+            ).fetchone()
+            checkpoint = self.db.execute(
+                "SELECT c.summary,c.next_step,c.created FROM checkpoints c JOIN sessions s ON s.id=c.session_id"
+                " WHERE s.task_id=? ORDER BY c.id DESC LIMIT 1",
+                (tid,),
+            ).fetchone()
+            failures = self.db.execute("SELECT COUNT(*) FROM failures WHERE task_id=?", (tid,)).fetchone()[0]
+            last_failure = self.db.execute(
+                "SELECT category,summary,created FROM failures WHERE task_id=? ORDER BY id DESC LIMIT 1", (tid,)
+            ).fetchone()
+            handback = self.db.execute(
+                "SELECT id,status,attempts,last_error,updated,delivered FROM handbacks WHERE task_id=?"
+                " ORDER BY created DESC, rowid DESC LIMIT 1",
+                (tid,),
+            ).fetchone()
+            launched = self.db.execute(
+                "SELECT data,created FROM events WHERE task_id=? AND type='agent.launched' ORDER BY seq DESC LIMIT 1",
+                (tid,),
+            ).fetchone()
+            agent = None
+            if launched is not None:
+                data = json.loads(launched["data"])
+                agent = {"tool": data.get("tool"), "terminal": data.get("terminal"),
+                         "session": data.get("session"), "launched": launched["created"]}
+            rows.append({
+                "ticket_key": r["ticket_key"],
+                "task_id": tid,
+                "task_status": r["task_status"],
+                "title": r["title"],
+                "revision": r["revision"],
+                "imported": r["imported"],
+                "refreshed": r["refreshed"],
+                "holds": json.loads(r["holds"]),
+                "acknowledged": json.loads(r["acknowledged"]) if r["acknowledged"] else None,
+                "session": None if session is None else {
+                    "id": session["id"],
+                    "owner": session["owner"],
+                    "status": session["status"],
+                    "lease_remaining_seconds": (max(0, round(session["lease_until"] - now))
+                                                if session["status"] == "active" else 0),
+                    "reported_tokens": session["tokens"],
+                },
+                "checkpoint": dict(checkpoint) if checkpoint else None,
+                "failures": failures,
+                "last_failure": dict(last_failure) if last_failure else None,
+                "handback": dict(handback) if handback else None,
+                "agent": agent,
+            })
+        return {
+            "schema": SCHEMA_VERSION,
+            "generated_at": now,
+            "links": rows,
+            "provenance": (
+                "Ledger records only. Reported usage and evidence are self-reported; nothing here "
+                "authorizes execution or changes a ticket."
             ),
         }

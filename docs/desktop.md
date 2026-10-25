@@ -177,3 +177,9 @@ A startup lock serializes service creation. If the desktop crashes during servic
 startup, an orphaned `starting` directory can block future starts; reconcile process
 and socket state before removing it. A disconnected client reports unknown outcomes
 instead of automatically retrying commands. Reopen the app to reconcile sessions.
+
+The command line shares this service. `taskrivet sessions` lists its terminals and
+`taskrivet attach` replays and follows one; neither starts the service. When no service
+is running, `taskrivet work` starts a standard-library Python service with the same
+socket, token, and protocol, and the desktop connects to it the same way. See the
+[ticket loop guide](ticket-loop.md).
