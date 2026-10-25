@@ -164,24 +164,56 @@ function showView(view){for(const name of ['workspace','failures','tools','dashb
 for(const view of ['workspace','failures','tools','dashboard','github'])$(view+'-nav').onclick=()=>showView(view);
 
 /* ---------------------------------------------------------------- tabs and panes */
-function paneLabel(p){if(p.kind==='opencode')return `◆ ${p.title||p.ref||'OpenCode'}`;return p.task||String(p.shell||'shell').split('/').pop();}
+function compactTaskLabel(taskId){
+  const t=state.tasks.find(item=>item.id===taskId),objective=String(t&&t.objective||'').replace(/\s+/g,' ').trim();
+  if(!objective)return taskId||'task';
+  return objective.length>30?`${objective.slice(0,29).trimEnd()}…`:objective;
+}
+function paneLabel(p){if(p.kind==='opencode')return `◆ ${p.title||p.ref||'OpenCode'}`;return p.task?compactTaskLabel(p.task):String(p.shell||'shell').split('/').pop();}
 function tabLabel(tab){if(tab.title)return tab.title;const p=terms.get(tab.panes[0]);return p?paneLabel(p):'terminal';}
 function tabState(tab){const panes=tab.panes.map(id=>terms.get(id)).filter(Boolean);if(!panes.length)return 'exited';return panes.some(p=>p.state==='running')?'running':'exited';}
+function tabContext(tab){
+  const panes=tab.panes.map(id=>terms.get(id)).filter(Boolean),p=panes[0],taskId=p&&p.task,t=taskId?state.tasks.find(item=>item.id===taskId):null;
+  if(!taskId)return {kind:'standalone',label:'standalone',tone:'neutral',detail:'No ticket context · shell activity is not completion.'};
+  const status=t&&t.status?String(t.status):'context unavailable';
+  const tone=!t?'stale':(['review','done','accepted'].includes(status)?'review':'bound');
+  const session=p&&p.session,shared= session?[...terms.values()].filter(item=>item.session===session).length:0;
+  const ownerTab=session&&tabs.find(item=>{const first=terms.get(item.panes[0]);return first&&first.session===session;}),binding=p&&p.binding||(ownerTab&&ownerTab.id===tab.id?'owner':'joined');
+  return {kind:'ticket',label:taskId,tone,shared:shared>1,sharedCount:shared,binding,detail:t?`${status} · ${t.objective||'Objective unavailable'}`:'Ticket snapshot unavailable · refresh to re-read source state.',task:t};
+}
+function hideTabContext(){const pop=$('tab-context');pop.hidden=true;pop.replaceChildren();}
+function showTabContext(tab,anchor){
+  const context=tabContext(tab),pop=$('tab-context');pop.replaceChildren();
+  pop.append(node('strong',context.kind==='ticket'?context.label:'Standalone terminal'));
+  pop.append(node('span',context.kind==='ticket'?(context.task?`${context.task.status||'unknown'} · ${context.task.kind||'work'}`:'context unavailable'):'No ticket binding','tab-context-state '+context.tone));
+  pop.append(node('p',context.detail));
+  if(context.kind==='ticket'){
+    if(context.shared)pop.append(node('small',`Shared ledger session · ${context.sharedCount} terminal tabs · ${context.binding==='owner'?'owner':'joined'} binding.`));
+    pop.append(node('small','Read-only context. This badge does not authorize execution or ticket mutation.'));
+  }
+  pop.hidden=false;
+  const rect=anchor.getBoundingClientRect(),parent=pop.offsetParent?.getBoundingClientRect()||{left:0,top:0};
+  pop.style.left=`${Math.max(8,rect.left-parent.left)}px`;pop.style.top=`${rect.bottom-parent.top+6}px`;
+}
 function renderTabs(){
   const bar=$('tabs');bar.replaceChildren();
   if(!tabs.length){bar.append(node('span','No terminals open','muted'));}
   for(const tab of tabs){
     const b=node('button',undefined,'tab'+(tab.id===activeTabId?' active':''));
     const dot=node('span',tabState(tab)==='running'?'●':'○','tab-dot');
-    b.append(dot,node('span',tabLabel(tab)));
+    const context=tabContext(tab),badge=node('span',context.kind==='ticket'?`· ${context.label}${context.shared?` · shared ×${context.sharedCount} · ${context.binding}`:''}`:'· standalone',`tab-context-badge ${context.tone}`);
+    badge.title=context.kind==='ticket'?'Show ticket context':'This shell has no ticket context';
+    badge.onclick=e=>{e.stopPropagation();showTabContext(tab,badge);};
+    b.append(dot,node('span',tabLabel(tab)),badge);
     if(tab.panes.length>1)b.append(node('span',` ${tab.panes.length}`,'tab-count'));
-    b.title=`${tabLabel(tab)} · ${tab.panes.length} pane${tab.panes.length===1?'':'s'}`;
+    b.title=`${tabLabel(tab)} · ${context.kind==='ticket'?context.label:'standalone'} · ${tab.panes.length} pane${tab.panes.length===1?'':'s'}`;
     b.onclick=()=>activateTab(tab.id);
     b.oncontextmenu=e=>{e.preventDefault();openMenu(e.clientX,e.clientY,[{label:'Rename tab…',run:()=>renameTab(tab.id)},{label:'Split right',run:()=>splitPane('h')},{label:'Split down',run:()=>splitPane('v')},{label:'Close pane',run:()=>closePane(activePaneId)},{label:'Close tab',run:()=>closeTab(tab.id)},{label:'Close other tabs',run:()=>closeOtherTabs(tab.id)}]);};
     bar.append(b);
   }
   $('terminal-empty').hidden=tabs.length>0;
 }
+document.addEventListener('mousedown',e=>{if(!e.target.closest('#tab-context')&&!e.target.closest('.tab-context-badge'))hideTabContext();});
 function buildTree(nodeRef){
   if(nodeRef.type==='leaf'){
     const p=terms.get(nodeRef.id);
@@ -569,12 +601,34 @@ function openTerminal(tool=null){
   $('launch-tool').textContent=launchTool?`Launch ${launchTool} directly, with no added arguments. Existing account settings apply.`:'Open your login shell.';
   $('cwd').value=home;const select=$('terminal-task');select.replaceChildren(new Option('Unassigned shell',''));
   for(const t of state.tasks.filter(t=>t.status==='ready'))select.add(new Option(t.id,t.id));
-  if(task()?.status==='ready')select.value=selectedTask;
+  const active=state.tasks.find(t=>t.id===selectedTask&&t.status==='running');
+  if(active)select.add(new Option(`${active.id} · active session`,active.id));
+  if(task()?.status==='ready'||active)select.value=selectedTask;
+  $('inherit-ticket-context').checked=false;
+  $('inherit-ticket-context').disabled=!active;
+  updateTicketContextNote(active);
   $('terminal-dialog').showModal();
 }
+function updateTicketContextNote(active=state.tasks.find(t=>t.id===$('terminal-task').value&&t.status==='running')){
+  const checked=$('inherit-ticket-context').checked;
+  $('ticket-context-note').textContent=active
+    ?(checked?`Authorized: this CLI will join ${active.id}'s active session. Ticket mutation and acceptance remain separate.`:`Unchecked: standalone CLI. Checked: explicitly join ${active.id}'s active session; this does not authorize ticket mutation or acceptance.`)
+    :'Select an active task to enable explicit ticket-context inheritance. Standalone CLI launch remains the default.';
+}
+$('inherit-ticket-context').onchange=()=>updateTicketContextNote();
 $('new-terminal').onclick=openTerminal;$('empty-new').onclick=openTerminal;$('tabs-new').onclick=openTerminal;
 $('choose-folder').onclick=safe(async()=>{const folder=await api.chooseDirectory();if(folder)$('cwd').value=folder;});
-$('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{const info=await api.createTerminal({cwd:$('cwd').value,task:$('terminal-task').value||null,tool:launchTool});$('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();}finally{button.disabled=false;}});
+$('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.target.querySelector('button.primary');button.disabled=true;try{
+  const taskId=$('terminal-task').value||null,inherit=$('inherit-ticket-context').checked;
+  let session=null;
+  if(inherit){
+    const active=state.tasks.find(t=>t.id===taskId&&t.status==='running'),record=state.sessions.find(s=>s.task_id===taskId&&s.status==='active');
+    if(!active||!record)throw new Error('Active ticket context is unavailable; refresh the ledger before opening this CLI.');
+    session=record.id;
+  }
+  const info=await api.createTerminal({cwd:$('cwd').value,task:taskId,session,tool:launchTool});
+  $('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();
+}finally{button.disabled=false;}});
 $('stop-terminal').onclick=safe(async()=>{if(terminal())await api.stop(activePaneId);});
 $('remove-terminal').onclick=()=>closePane(activePaneId);
 // Terminal focus: collapse the navigation so the terminal owns the window.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-10-24
+
+- Add ticket-aware terminal badges with friendly objective labels and explicit standalone state.
+- Add explicit active-ticket context inheritance for CLI launches through shared ledger sessions.
+- Show shared-session counts and distinguish owner versus joined terminal bindings.
+
 ## 0.3.1 — 2026-10-24
 
 - Add the supervised ticket loop and shared local session service to the desktop alpha.
