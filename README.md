@@ -1,48 +1,78 @@
 # Taskrivet
 
-```text
-TTTTT   AAA   SSSS  K   K  RRRR   IIIII  V   V  EEEE   TTTTT
-  T    A   A  S     K  K  R   R     I    V   V  E       T
-  T    AAAAA   SSS   K K   RRRR     I    V   V  EEE    T
-  T    A   A     S   KK    R  R     I    V   V  E       T
-  T    A   A  SSSS   K K   R   R     I    V V   EEE    T
-  T    A   A     S   K  K  R   R     I    V V   E       T
-  T    A   A  SSSS   K   K  RRRR   IIIII  V   V  EEEE   TTTTT
+**A local-first workspace for AI coding agents and ticket work.**
 
-  >_ Less repeated context. More accepted work.
+Keep persistent terminals, a clear objective, bounded context, and reviewable evidence together. Spend less time repeating context and more time finishing useful work.
+
+[![Tests](https://github.com/hamanakam1/taskrivet/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/hamanakam1/taskrivet/actions/workflows/tests.yml)
+[![Privacy check](https://github.com/hamanakam1/taskrivet/actions/workflows/public-content-privacy.yml/badge.svg?branch=main)](https://github.com/hamanakam1/taskrivet/actions/workflows/public-content-privacy.yml)
+[![Release](https://img.shields.io/github/v/release/hamanakam1/taskrivet?include_prereleases)](https://github.com/hamanakam1/taskrivet/releases)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
+[![MIT license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+[Interactive guide](https://hamanakam1.github.io/taskrivet/) · [Downloads](https://github.com/hamanakam1/taskrivet/releases) · [Roadmap](docs/roadmap.md) · [Discussions](https://github.com/hamanakam1/taskrivet/discussions) · [Contribute](CONTRIBUTING.md)
+
+![Taskrivet session inspector beside the terminal workspace](docs/screenshots/workspace-session-inspector.png)
+
+*The workspace above uses synthetic data. It shows the interface, not a completed real ticket.*
+
+## What you can do today
+
+- **Keep agents in view.** Open real terminal tabs, split panes, find text in scrollback, and reconnect after closing the desktop. Resume local OpenCode sessions in separate tabs.
+- **Carry focused context.** Give a task an objective, acceptance criteria, resource scope, token budget, and a bounded context packet with freshness and provenance.
+- **Follow one ticket through a session.** Choose a ticket and an installed agent, launch a supervised attempt, record progress, and preview a report before sending it through your configured adapter.
+- **Keep evidence and failures visible.** Inspect checkpoints, leases, self-reported usage, repeated failures, and the ordered ledger events.
+- **Observe GitHub activity.** Reconcile bounded observations of issues, PRs, reviews, commits, Actions and releases. Publish only an explicitly selected public summary through the idempotent outbox.
+
+**Status: desktop alpha.** The released Mac application is unsigned and unnotarized. The core works independently of any external ticket service. Automated ticket selection, verified model/provider routing, source claims, process isolation, reboot recovery, and autonomous acceptance remain proposed work. See the [execution contract](docs/ticket-execution.md) and [security boundaries](SECURITY.md).
+
+## Start here
+
+| Your goal | Start with |
+| --- | --- |
+| Try the Mac application | [Release downloads and checksums](https://github.com/hamanakam1/taskrivet/releases), then [desktop setup](docs/desktop.md) |
+| Use the standalone Python CLI | The quick start below; Python 3.11+, no runtime dependencies |
+| Work a ticket with an agent | [Supervised ticket loop](docs/ticket-loop.md) |
+| Connect GitHub activity | [GitHub synchronization guide](docs/github-sync.md) |
+| Understand the design | [Interactive guide](https://hamanakam1.github.io/taskrivet/), [architecture](docs/architecture.md), [long-term plan](docs/long-term-plan.md) |
+| Ask a question or propose an idea | [Discussions](https://github.com/hamanakam1/taskrivet/discussions) |
+| Report a reproducible defect | [Bug report](https://github.com/hamanakam1/taskrivet/issues/new?template=bug_report.yml) |
+
+Releases contain an Apple Silicon app, Python wheel/source distribution, and `SHA256SUMS`. Download the assets from the same release and verify them with `shasum -a 256 -c SHA256SUMS`. Read the release notes for that version's requirements and validation; source branches may contain newer development work.
+
+### Python CLI
+
+```sh
+git clone https://github.com/hamanakam1/taskrivet.git
+cd taskrivet
+python3 -m taskrivet --help
+
+# Keep the demo ledger separate from your normal tasks.
+export TASKRIVET_DB="$PWD/.taskrivet/demo.sqlite"
+python3 -m taskrivet init
+python3 -m taskrivet task-add demo \
+  --objective 'Fix the empty search result state' \
+  --acceptance 'Empty search shows useful guidance; regression check passes' \
+  --scope demo-repo/search --token-budget 8000
+python3 -m taskrivet start demo --owner terminal-1
 ```
 
-[![Tests](https://img.shields.io/github/actions/workflow/status/hamanakam1/taskrivet/tests.yml?branch=main&label=tests)](https://github.com/hamanakam1/taskrivet/actions/workflows/tests.yml)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
-[![Repo size](https://img.shields.io/github/repo-size/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet)
-[![Language](https://img.shields.io/github/languages/top/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet)
-[![Last commit](https://img.shields.io/github/last-commit/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/commits/main)
-[![Stars](https://img.shields.io/github/stars/hamanakam1/taskrivet?style=social)](https://github.com/hamanakam1/taskrivet/stargazers)
-[![Forks](https://img.shields.io/github/forks/hamanakam1/taskrivet?style=social)](https://github.com/hamanakam1/taskrivet/network/members)
-[![Issues](https://img.shields.io/github/issues/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/issues)
-[![Contributors](https://img.shields.io/github/contributors/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/graphs/contributors)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/hamanakam1/taskrivet)](https://github.com/hamanakam1/taskrivet/commits/main)
+Use the returned session ID to record the work you perform in your agent tool:
 
-**Less repeated context. More accepted work. Visible failures.**
+```sh
+SESSION_ID=replace_with_returned_session_id
+python3 -m taskrivet checkpoint "$SESSION_ID" \
+  --summary 'Added empty-state rendering' \
+  --evidence 'Reviewable diff and regression-test output' \
+  --next 'Review against acceptance criteria' --tokens 1200
+python3 -m taskrivet finish "$SESSION_ID" --evidence 'Diff and test output ready for review'
+python3 -m taskrivet accept demo --reason 'Operator reviewed the acceptance evidence'
+python3 -m taskrivet status
+```
 
-**[Explore the interactive system guide →](https://hamanakam1.github.io/taskrivet/)**
+`finish` requests review. A separate `accept` decision records acceptance. Evidence and token counts are supplied records, not independently verified facts or measured billing. For an installed `taskrivet` command, create a virtual environment and run `python -m pip install -e .`.
 
-A browser walkthrough with interactive architecture and [ticket lifecycle maps](https://hamanakam1.github.io/taskrivet/#lifecycle), workflow steps, and current capability boundaries.
-
-Taskrivet is an open-source, local-first coordination core for people working
-across AI coding agents, CLIs, and terminal sessions. Give each session a clear
-objective, a bounded context packet, an explicit owner, and an evidence trail.
-Measure useful outcomes instead of how many agents are busy.
-
-**Status: v0.3 desktop alpha.** A Mac app with real embedded terminal tabs,
-plus a working coordination ledger and JSON CLI. Create tasks, record checkpoints,
-inspect bounded context, track recurring failures, and discover installed CLI tools. The CLI can also
-work one ticket you choose from a local ticket service: it opens the agent you pick in a persistent
-terminal and posts a report back only when you confirm. Terminal commands are controlled by you;
-automated ticket selection and dispatch, model dispatch, and verified billing are future work. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
-
-## Mac desktop app
+### Mac workspace from source
 
 ```sh
 cd desktop
@@ -50,315 +80,51 @@ npm ci
 npm start
 ```
 
-Requires Python 3.11+ for the ledger and Node/npm for source development.
-`npm run build:mac` builds an unsigned Apple Silicon `.app` locally. The desktop
-has runtime dependencies; the Python coordination core remains standard-library-only.
-See [desktop setup and lifecycle](docs/desktop.md). Closing a window keeps active
-shells running in Taskrivet’s independent local session service. Quitting and reopening the desktop reconnects to them. Use Stop terminal to end a process.
+The Electron workspace requires Python 3.11+ and Node/npm for source development. `npm run build:mac` builds an unsigned Apple Silicon app. [Desktop setup](docs/desktop.md) explains terminal lifecycle and packaging.
 
-## Session inspector and terminal workspace
+Shortcuts: `⌘T` new tab, `⌘D` split right, `⇧⌘D` split down, `⌘F` find, `⌘K` command palette, `⌘W` close pane, `⌘1`–`⌘9` switch tab, `⇧⌘F` focus mode. A second pane can join the same ledger session without claiming a second lease.
 
-Every session keeps its record beside it. The right-hand column shows what the
-ledger actually holds for the focused pane: session id, owner, lease time
-remaining, reported usage, the task objective and acceptance criteria, the
-resource scope keys another task is holding, the bounded context packet, every
-checkpoint with its evidence, recorded failures, and the ledger event trail.
+### Supervised ticket work
 
-![Taskrivet workspace with the session inspector](docs/screenshots/workspace-session-inspector.png)
-
-The inspector follows the focused pane, so a split layout keeps one record
-beside the work it describes. A second pane may join the same ledger session:
-it shares the attempt, and it never claims a new lease.
-
-![Two panes working one task](docs/screenshots/workspace-split-panes.png)
-
-The terminal behaves like a modern terminal emulator. Panes split right or
-down, tabs rename, find searches the focused pane's scrollback including text
-that wrapped, a command palette exposes every action from the keyboard, and the
-shell reports its own folder when it supports OSC 7.
-
-![Find in the scrollback](docs/screenshots/workspace-find-in-scrollback.png)
-
-![Command palette](docs/screenshots/workspace-command-palette.png)
-
-Shortcuts: `⌘T` new tab, `⌘D` split right, `⇧⌘D` split down, `⌘F` find,
-`⌘K` command palette, `⌘W` close pane, `⌘1`–`⌘9` switch tab, `⇧⌘F` focus mode.
-`⌘C` copies a selection when there is one and otherwise reaches the shell.
-
-These captures render the workspace renderer with synthetic data, so they show
-the interface rather than a live run. Rebuild them with:
-
-```sh
-cd desktop
-npm ci
-npx playwright install chromium
-node scripts/capture-screenshots.mjs
-```
-
-## One tab per OpenCode session
-
-The terminal card carries an OpenCode drawer. It reads your local OpenCode session
-list and offers every session as its own tab: each one starts `opencode --session <id>`
-in that session’s own working folder, so a resumed session keeps its history and its
-context. A batch action opens the matching sessions as separate tabs, up to twelve per
-action, and the service holds twenty-four tabs at once.
-
-Only session metadata is read — identifier, title, folder, agent, timestamps. Taskrivet
-does not read transcripts, messages, credentials, or provider settings, and it never
-writes to an OpenCode session. The list reflects what your local OpenCode installation
-reports; sessions on another machine, another account, or a remote host are not visible.
-An OpenCode session resumed in a tab is a live agent process, and a second tab on the
-same session shows the same conversation.
-
-```sh
-python3 -m taskrivet opencode-sessions --limit 60
-```
-
-## Terminal focus
-
-The ⤢ button in the terminal card header collapses the navigation — sidebar, heading,
-inspector, and status strip — so the terminal owns the window. It is not macOS
-fullscreen: the app keeps its own window and the tab bar stays reachable. Command-Shift-F
-toggles it, and the choice is remembered for the next launch.
-
-## Standalone tool catalog
-
-Taskrivet owns its embedded terminal processes and coordination ledger. It does
-not require Bosun, tmux, or an external ticket service.
-
-The desktop Tool catalog discovers executable commands from PATH and common local
-installation folders. Search all commands, filter coding-agent profiles, and launch
-an installed command in an embedded terminal with a chosen folder and optional task.
-The catalog is dynamic: it can include hundreds of local tools without bundling
-third-party binaries. It includes 26 coding-agent command-name discovery profiles;
-these are hints, not verified product identities or complete API integrations.
-Any executable discovered in the scanned directories can be launched, including new
-agents without a dedicated profile. Shell aliases/functions remain available in a
-normal login-shell tab. Direct tool launch passes no arguments; use a shell tab when
-you need flags, a wrapper, or shell initialization.
-
-```sh
-python3 -m taskrivet tools
-python3 -m taskrivet tools --history
-```
-
-History scanning is explicit. It reads at most 2 MB of local zsh history, emits only
-recognized first-command counts, and never persists or publishes raw history.
-Dated entries use a 90-day window; undated entries are separately labelled. This
-cannot discover every use in IDEs, other shells, compound commands, or remote hosts.
-Account authentication, quota, incremental cost, and agent health remain unknown.
-No tools are executed during discovery and nothing is installed automatically.
-Local inventory output contains private installation paths: do not commit it.
-
-See [architectural lessons from Bosun](docs/bosun-integration.md). Its former
-experimental observer has been removed; the standalone runtime is the direction.
-
-## Quick start
-
-Python 3.11 or newer. Run directly from the checkout without installing anything:
-
-```sh
-git clone https://github.com/hamanakam1/taskrivet.git
-cd taskrivet
-python3 -m taskrivet --help
-export TASKRIVET_DB="$PWD/.taskrivet/demo.sqlite"
-python3 -m taskrivet init
-python3 -m taskrivet task-add demo \
-  --objective 'Fix the empty search result state' \
-  --acceptance 'Empty search shows useful guidance; regression check passes' \
-  --scope demo-repo/search --token-budget 8000
-python3 -m taskrivet profile-add local-coder --kind code \
-  --context-limit 16000 --cost zero_incremental --ttl 3600
-python3 -m taskrivet route demo
-python3 -m taskrivet start demo --owner terminal-1
-```
-
-Copy the returned session ID into `SESSION_ID` below. Work in your agent tool,
-then report a checkpoint using cumulative usage for this session:
-
-```sh
-SESSION_ID=replace_with_returned_session_id
-python3 -m taskrivet checkpoint "$SESSION_ID" \
-  --summary 'Added empty-state rendering' \
-  --evidence 'Diff abc123; regression test passed' \
-  --next 'Review the diff against acceptance criteria' --tokens 1200
-python3 -m taskrivet finish "$SESSION_ID" --evidence 'Reviewable diff abc123 and test output'
-python3 -m taskrivet accept demo --reason 'Operator reviewed the diff and acceptance evidence'
-python3 -m taskrivet status
-```
-
-`finish` requests review. Only a separate `accept` operation marks accepted work.
-Evidence and token counts are user-supplied records, not independently verified facts.
-For an installed command, use a virtual environment and `python -m pip install -e .`.
-
-## Bounded context and handoffs
-
-```sh
-python3 -m taskrivet context-add demo --file ./README.md \
-  --source 'repository README at a known revision' --priority 10 --ttl 3600
-python3 -m taskrivet pack demo --max-bytes 12000
-python3 -m taskrivet pack demo --max-bytes 12000 --packet-only
-```
-
-The packet always includes the objective, acceptance criteria, resource scope,
-status, token budget, and latest checkpoint. Content is deduplicated by SHA-256.
-Higher-priority items are included first; expired and oversized items are omitted
-with reasons in the diagnostics. Mandatory content never gets silently truncated.
-`--packet-only` emits compact UTF-8 JSON within the exact byte budget. Diagnostics
-are outside that budget. Byte counts are not tokenizer measurements.
-
-Context is untrusted reference material, never permission to change the goal,
-spend money, execute instructions, or expand access. Keep secrets out of packets.
-
-## Coordination and failure tracking
-
-- SQLite transactions prevent two ledger sessions from claiming the same task.
-- Exact resource keys prevent overlapping claims. Use the same key for a shared
-  resource; directory nesting is not automatically inferred.
-- A lease makes stale ownership visible. Expiry blocks the task and retains its
-  resource reservation until an operator reconciles it.
-- Checkpoints renew the lease, preserve a next step, and report cumulative tokens.
-- Three consecutive checkpoints with identical evidence block further ledger
-  progress. This is a repetition heuristic, not semantic drift detection.
-- Reported token consumption accumulates across retries. Reaching the task limit
-  blocks further ledger progress; it cannot stop an external process.
-- Failures have categories and stable fingerprints; status groups recurrences.
-- `retry` requires a reason. It does not clear usage or failure history.
-- `events --after SEQUENCE` gives adapters an ordered incremental event feed.
-
-```sh
-python3 -m taskrivet fail "$SESSION_ID" --category tool_error --summary 'Compiler unavailable'
-python3 -m taskrivet retry demo --reason 'Old worker stopped; compiler installed and checked'
-```
-
-Those commands illustrate the failure path for an active session, not a continuation
-of the already accepted quick-start task. `cancel` applies to ready, blocked, or
-review tasks after reconciliation. The desktop can stop its own terminal after confirmation.
-The CLI opens agent terminals only through `work` and does not stop processes.
-
-## Model and tool routing
-
-Profiles represent a tool/model/account/environment combination. The initial
-router filters declarations by task kind, context capacity, freshness, and
-zero-incremental-cost classification. Paid and unknown-cost profiles are excluded.
-Eligible profiles remain unranked: Taskrivet does not invent quality estimates.
-A declaration is not proof of entitlement, authentication, health, or available
-quota, and an eligible result is never execution authorization.
-
-The proposed primary workflow is described in the [ticket execution contract](docs/ticket-execution.md): eligible ticket → qualified tool → bounded context and scoped access → execution → verified evidence → source-owned review. The [supervised ticket loop](docs/ticket-loop.md) implements its operator-driven part: you choose the ticket and the tool, and you confirm the report. Atomic claims, scoped access, and automated dispatch remain proposed.
-
-The long-term objective is **accepted outcomes per unit of total effort**:
-operator time, rework, latency, tokens, credits, and cash. Subscription utilization
-is useful only when it improves outcomes. Savings remain unknown until measured
-against a representative baseline.
-
-## Independence and integration
-
-Taskrivet owns its repository, package, and local database. It has no dependency
-on an external ticket service. The optional ticket-service bridge reconciles GitHub observation summaries into an
-explicitly mapped existing ticket using the dashboard-owned compare-and-swap API.
-Public summaries can be posted to an explicitly selected GitHub issue with an
-idempotent outbox. Per-issue lifecycle mirroring and autonomous dispatch remain planned.
-The CLI and Python `Ledger` API are the current integration surfaces.
-
-See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md),
-[long-term plan](docs/long-term-plan.md),
-[security boundaries](SECURITY.md), and [contributing](CONTRIBUTING.md).
-
-## Development
-
-```sh
-python3 -m unittest discover -s tests -v
-```
-
-MIT licensed. The name describes work held together across tools and sessions.
-GitHub searches found no prior repository match; PyPI and npm returned no package
-on 2026-10-21. Web searches found no confirmed competing software product. These checks do not establish trademark clearance
-or universal name exclusivity. Neither package registry has been published to.
-
-
-## Optional local ticket preview
-
-The desktop Ticket preview reads a bounded page from an explicitly configured local
-service implementing the supported ticket protocol. Start with Planned work across all returned projects; filter by project or
-search within the page, select other source states, and page through results.
-It shows source timestamps, reported counts, readiness, and known execution holds.
-An adapter snapshot does not authorize execution or establish complete-board coverage.
-
-```sh
-python3 -m taskrivet dashboard-preview --url http://127.0.0.1:8080 --status planned --offset 0
-```
-
-The origin above is a synthetic example. There is no default destination: supply
-`--url` or enter your service origin in the desktop. Changing the URL does not
-provide compatibility with arbitrary ticket systems. The adapter identity in
-preview JSON is `ticket-service`; the CLI command remains `dashboard-preview`.
-
-This adapter uses GET `/api/tix` with a 100-row request, explicit source status,
-and offset. It never calls ticket mutation, authorization, agent launch, or acceptance
-endpoints. It never calls a general board or maintenance endpoint. Unknown/stale
-readiness is not promoted to eligible work.
-The preview does not import tickets into the local ledger, read provider credentials,
-or send source data to a model. Output can contain private ticket information; keep
-it local. Only local HTTP origins are supported, redirects and proxy inheritance
-are disabled, and responses are bounded to 8 MiB with a ten-second timeout.
-
-The adapter is optional. Taskrivet's local queue and terminal service remain usable
-without any external ticket service. Other ticket systems can implement the proposed adapter contract.
-Tool recommendations, atomic claims, scoped grants, and dispatch are still future work.
-
-## Supervised ticket loop
-
-Work one ticket at a time from the command line. You choose the ticket and the agent;
-Taskrivet keeps the record around them.
+Configure an optional local ticket service and choose the ticket and agent yourself. This origin is a synthetic example; there is no default destination.
 
 ```sh
 python3 -m taskrivet config set ticket_service.origin http://127.0.0.1:8080
 python3 -m taskrivet --format table tickets --limit 20
 python3 -m taskrivet --format table ticket DEMO-42
-python3 -m taskrivet work DEMO-42 --tool codex --ack
-python3 -m taskrivet attach 3f9c1a2b
-python3 -m taskrivet handback DEMO-42            # preview the report
-python3 -m taskrivet handback DEMO-42 --confirm  # post it through your adapter
+python3 -m taskrivet work DEMO-42 --tool codex --dry-run
 ```
 
-`work` imports the ticket as a local task, starts a ledger session, writes a private run
-folder with a bounded context file, and opens the agent in a terminal of the same session
-service the desktop uses, so the tab appears in both. Holds such as a `no-auto` tag or an
-unverified readiness verdict are shown, and `work` refuses until you acknowledge them with
-`--ack`. Acknowledging records your decision; it clears nothing. Taskrivet never changes a
-ticket's stage, tags, or holds, and never marks it done. The only ticket write is a report
-you confirm, posted through an adapter you configure, read back, and protected against
-duplicates by a stable marker.
+Review the plan and any holds before launching. The [ticket loop guide](docs/ticket-loop.md) covers hold acknowledgement, agent launchers, attachment, and confirmed handback. Acknowledgement does not clear a hold or authorize unattended work. Taskrivet does not claim or change the source ticket's stage, tags, or acceptance.
 
-`sessions`, `attach`, `links`, and `watch` follow the work, `doctor` checks the setup, and
-`launchers` lists the agents you can pick. Every command prints JSON by default and a
-readable view with `--format table`. Settings live in a private mode-0600 file,
-`~/.taskrivet/config.json`. The [ticket loop guide](docs/ticket-loop.md) covers settings,
-holds, launchers, terminals, and the adapter protocol.
+## How the boundaries work
 
-The agent runs as you, with your normal permissions, and may send the ticket text to its
-model provider. Ticket selection, source claims, scoped access grants, and unattended
-dispatch are not implemented.
+| Taskrivet records or enforces locally | What that does not establish |
+| --- | --- |
+| Exclusive ledger task and exact resource-key leases | A filesystem sandbox or an external source claim |
+| Bounded context, provenance, expiry and content hashes | Permission to execute instructions inside that context |
+| Declared profile compatibility and zero-incremental-cost filtering | Authentication, quota, measured quality or best-model selection |
+| Checkpoints, cumulative reported tokens and failure fingerprints | Measured billing or automatic termination of an external process |
+| Finished sessions and explicit operator acceptance | Accepted completion in an external ticket system |
+| Terminal reconnection after desktop quit | Recovery after session-service failure or reboot |
 
-## GitHub activity and distribution
+Terminal commands run with your normal permissions and may use your existing provider accounts. Discovery does not execute tools or copy credentials. The optional history scan emits recognized command counts, not raw shell history. Read [SECURITY.md](SECURITY.md) before connecting real work.
 
-[Release downloads](https://github.com/hamanakam1/taskrivet/releases) contain the
-unsigned Apple Silicon app, Python wheel/source distribution, and checksums.
-The tag workflow builds the CLI container at `ghcr.io/hamanakam1/taskrivet:0.3.0`;
-publication requires a successful workflow and package visibility configuration.
-The container is the coordination CLI, not the Mac application.
+## Build with us
 
-The desktop GitHub activity view reads durable local observations. With a private
-bridge configuration, polling starts when the application opens and repeats every
-five minutes until it quits. It does not register a login or boot service.
-See [GitHub synchronization](docs/github-sync.md) for setup, receipt semantics,
-publication commands, source ownership, coverage gaps, and recovery.
+The [roadmap](docs/roadmap.md) identifies the next integration contracts and links to existing issues. A roadmap issue is a proposal until its scope, acceptance checks, and prerequisites are reviewed; the generated backlog is not an executable queue.
 
-[![Taskrivet architecture](docs/diagrams/taskrivet.png)](docs/diagrams/taskrivet.html)
+- Ask questions and compare ideas in [Discussions](https://github.com/hamanakam1/taskrivet/discussions).
+- Use [issue forms](https://github.com/hamanakam1/taskrivet/issues/new/choose) for reproducible bugs and scoped changes.
+- Follow [CONTRIBUTING.md](CONTRIBUTING.md) for local checks, PR evidence, and privacy review.
+- Report security vulnerabilities through [private reporting](https://github.com/hamanakam1/taskrivet/security/advisories/new), not a public issue.
+- See [support](SUPPORT.md) and the [code of conduct](CODE_OF_CONDUCT.md).
 
-Download [the interactive Archify diagram](docs/diagrams/taskrivet.html) and open it
-in a browser. The [typed source](docs/diagrams/taskrivet.architecture.json) and
-[validation and visual-review receipt](docs/diagrams/delivery.json) are included.
-External intake tools connect through the ticket authority; Taskrivet does not depend on them.
+```sh
+python3 -m unittest discover -s tests -v
+cd desktop
+npm ci
+npm test
+```
 
+MIT licensed. No provider service, third-party coding agent, or subscription is bundled.

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and workflow ideas
+    url: https://github.com/hamanakam1/taskrivet/discussions
+    about: Ask for setup help, compare workflows, or discuss an idea before opening an implementation issue.
+  - name: Report a security vulnerability privately
+    url: https://github.com/hamanakam1/taskrivet/security/advisories/new
+    about: Keep vulnerabilities and sensitive reproduction details out of public issues; see SECURITY.md for the fallback contact procedure.
+  - name: Setup and capability guide
+    url: https://hamanakam1.github.io/taskrivet/
+    about: Explore the workflow, architecture, and current capability boundaries.
