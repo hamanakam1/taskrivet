@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a reproducible Taskrivet problem using synthetic data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Taskrivet. For setup questions, use [Discussions](https://github.com/hamanakam1/taskrivet/discussions).
+        Report vulnerabilities through [private security reporting](https://github.com/hamanakam1/taskrivet/security/advisories/new).
+        Never attach your ledger, run folder, private configuration, terminal transcript, credentials, or real ticket data. Use a small synthetic example instead.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed private data from this report and any attachments.
+          required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did this happen?
+      options:
+        - Command-line interface or coordination ledger
+        - Desktop terminal workspace
+        - Ticket service integration
+        - GitHub activity or synchronization
+        - Installation or packaging
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Taskrivet version or commit
+      description: Include the release tag, or the commit from a source checkout.
+      placeholder: Release tag or short commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS and architecture, Python version, and Node version if developing the desktop. Do not include usernames or installation paths.
+      placeholder: "macOS, Apple Silicon; Python 3.13; downloaded app"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest commands or UI actions needed, with invented tasks and a disposable ledger.
+      placeholder: |
+        1. Create a synthetic task ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include a short sanitized error message, not a full transcript. Say whether the process is still running, exited, or unknown.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: Optional synthetic screenshot, minimal reproduction, or regression range. Explain any checks you already ran.
