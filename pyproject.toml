@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "taskrivet"
-version = "0.3.2"
+version = "0.5.0"
 description = "Keep agent work purposeful, context bounded, and failures visible."
 readme = "README.md"
 requires-python = ">=3.11"
