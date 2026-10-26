@@ -13,6 +13,12 @@ set -eu
 cd "$(dirname "$0")/.."
 OUT_DIR="${1:-build}"
 APP="$OUT_DIR/Taskrivet.app"
+ICON="../docs/brand/app.icns"
+
+if [ ! -f "$ICON" ]; then
+    echo "build_app: expected app icon at $ICON" >&2
+    exit 1
+fi
 
 # SwiftUI's property wrappers ship as macro plugins in recent SDKs; the
 # Command Line Tools lack them, so prefer a full Xcode install when present.
@@ -33,6 +39,7 @@ VERSION="$(git -C .. describe --tags --always --dirty 2>/dev/null || echo 'dev')
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Taskrivet"
+cp "$ICON" "$APP/Contents/Resources/Taskrivet.icns"
 chmod +x "$APP/Contents/MacOS/Taskrivet"
 # SwiftPM release binaries retain debug symbols with absolute build paths.
 # Strip the packaged copy before signing; failure must stop packaging.
@@ -46,6 +53,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key><string>Taskrivet</string>
     <key>CFBundleDisplayName</key><string>Taskrivet</string>
     <key>CFBundleExecutable</key><string>Taskrivet</string>
+    <key>CFBundleIconFile</key><string>Taskrivet.icns</string>
     <key>CFBundleIdentifier</key><string>org.taskrivet.native</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>

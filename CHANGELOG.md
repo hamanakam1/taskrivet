@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.1 — 2026-10-26
+
+- Introduce the riveted-R identity with editable light, dark and monochrome logos,
+  app artwork, browser icons, and a repository/link preview image.
+- Use the same icon in Electron and native macOS packages, and matching marks in
+  the desktop sidebar, project README and website.
+- Include a reproducible asset generator, pinned open-font source and license,
+  usage guide, small-size review sheet, and asset checksum manifest.
+
+This is a branding-only preview update to 0.5.0. The native workspace remains a
+developer preview, and neither desktop is notarized. Execution, routing and
+acceptance behavior is unchanged.
+
 ## 0.5.0 — 2026-10-25
 
 This is a preview release of the merged routing and execution-request foundation.

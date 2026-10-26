@@ -1,6 +1,6 @@
 {
   "name": "taskrivet-desktop",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Taskrivet desktop workspace with embedded terminals",
   "author": "Taskrivet contributors",
@@ -28,7 +28,7 @@
     "afterExtract": "./scripts/strip-native-paths.cjs",
     "files": ["main.cjs", "preload.cjs", "policy.cjs", "session-service.cjs", "session-client.cjs", "session-token.cjs", "ui/**/*", "package.json"],
     "extraResources": [{"from": "../taskrivet", "to": "core/taskrivet", "filter": ["**/*.py"]}],
-    "mac": {"category": "public.app-category.developer-tools", "identity": null},
+    "mac": {"category": "public.app-category.developer-tools", "identity": null, "icon": "../docs/brand/app.icns"},
     "directories": {"output": "dist"}
   }
 }
