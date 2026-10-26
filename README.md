@@ -1,4 +1,9 @@
-# Taskrivet
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-light.svg">
+    <img src="docs/brand/logo.svg" alt="Taskrivet" width="460">
+  </picture>
+</h1>
 
 **A local-first workspace for AI coding agents and ticket work.**
 
