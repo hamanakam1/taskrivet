@@ -3,6 +3,7 @@ const net=require('node:net'),fs=require('node:fs'),path=require('node:path');
 const {spawn}=require('node:child_process');
 const {randomBytes}=require('node:crypto');
 const {EventEmitter}=require('node:events');
+const {readSessionToken}=require('./session-token.cjs');
 // Keep native PTY imports in the service, not the client.
 const VERSION=1,MAX_FRAME=32*1024*1024;
 function privateDirectory(dir){fs.mkdirSync(dir,{recursive:true,mode:0o700});const st=fs.lstatSync(dir);if(!st.isDirectory()||st.isSymbolicLink()||st.uid!==process.getuid()||(st.mode&0o077))throw new Error('Session directory requires mode 0700 and current-user ownership');}
@@ -17,9 +18,7 @@ class SessionClient extends EventEmitter{
   privateDirectory(this.dir);
   const tokenPath=path.join(this.dir,'token');
   try{fs.writeFileSync(tokenPath,randomBytes(32).toString('hex'),{flag:'wx',mode:0o600});}catch(e){if(e.code!=='EEXIST')throw e;}
-  const st=fs.lstatSync(tokenPath);
-  if(!st.isFile()||st.isSymbolicLink()||st.uid!==process.getuid()||(st.mode&0o077))throw new Error('Unsafe session token');
-  this.token=fs.readFileSync(tokenPath,'utf8');
+  this.token=readSessionToken(tokenPath);
   try{await this.attach();return;}catch(e){if(!['ENOENT','ECONNREFUSED'].includes(e.code))throw e;}
   const lock=path.join(this.dir,'starting');
   let owner=false;
