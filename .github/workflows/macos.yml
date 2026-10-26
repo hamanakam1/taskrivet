@@ -1,0 +1,16 @@
+name: macos
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: swift build
+        working-directory: macos
+      - run: swift test
+        working-directory: macos
+      - run: scripts/build_app.sh
+        working-directory: macos

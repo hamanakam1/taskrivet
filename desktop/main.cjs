@@ -70,20 +70,23 @@ async function newTerminal({cwd, task = null, tool = null, opencode = null, sess
     }
   }
   let ledgerSession = null;
+  let binding = null;
   if (session) {
     // A second pane may join an existing attempt. It never claims a new lease.
     policy.text(session, 'session', 128);
     if (!task) throw new Error('A shared pane must name its task.');
     policy.text(task, 'task');
     ledgerSession = policy.sharedSession(await ledger(['detail', '--task', task, '--session', session]), session);
+    binding = 'joined';
   } else if (task) {
     policy.text(task, 'task');
     ledgerSession = (await ledger(['start', task, '--owner', 'desktop-terminal'])).session_id;
+    binding = 'owner';
   }
   const shell = executable || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
   const launchArgs = args.length ? args : (executable ? [] : ['-l']);
   try {
-    return await sessions.call('create', {cwd, task, session: ledgerSession, shell, args: launchArgs, title, kind, ref, db});
+    return await sessions.call('create', {cwd, task, session: ledgerSession, binding, shell, args: launchArgs, title, kind, ref, db});
   } catch (e) {
     if (ledgerSession && !session) await ledger(['fail', ledgerSession, '--category','terminal_start','--summary',String(e.message)]).catch(()=>{});
     throw e;

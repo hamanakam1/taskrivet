@@ -13,7 +13,7 @@ function privateDirectory(dir){
 function startService({dir,token,spawn=pty.spawn}){
   privateDirectory(dir);
   const socketPath=path.join(dir,'sessions.sock'), sessions=new Map(), clients=new Set();
-  function snapshot(t){return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};}
+  function snapshot(t){return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,binding:t.binding||null,shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};}
   function send(c,message){
     if(c.destroyed)return;
     if(c.writableLength>MAX_FRAME){c.destroy();return;}
@@ -29,10 +29,10 @@ function startService({dir,token,spawn=pty.spawn}){
       if(!path.isAbsolute(shell))throw new Error('Executable must be absolute');
       if(!Array.isArray(data.args)||data.args.length>64||data.args.some(x=>typeof x!=='string'||x.includes('\0')||x.length>65536))throw new Error('Invalid arguments');
       for(const key of ['task','session'])if(data[key]!=null)policy.text(data[key],key,128);
-      for(const key of ['title','kind','ref'])if(data[key]!=null)policy.text(data[key],key,256);
+      for(const key of ['title','kind','ref','binding'])if(data[key]!=null)policy.text(data[key],key,256);
       const proc=spawn(shell,data.args,{name:'xterm-256color',cols:100,rows:30,cwd,
         env:{...process.env,ELECTRON_RUN_AS_NODE:undefined,TERM:'xterm-256color',COLORTERM:'truecolor',TASKRIVET_DB:data.db}});
-      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false,
+      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,binding:data.binding||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false,
         title:data.title||null,kind:data.kind||'shell',ref:data.ref||null};
       sessions.set(t.id,t);
       function flush(){

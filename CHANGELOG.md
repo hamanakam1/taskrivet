@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Add a native SwiftUI Mac workspace under macos/: ticket loop, task inspector,
+  session attach, and embedded PTY terminals via SwiftTerm, with ledger reads
+  through CLI JSON only and all writes left to interactive operator terminals.
+- Reserve room for the handback marker line inside the 4,000-byte report budget,
+  so a ticket service that caps the whole note cannot cut the marker off.
+- Record the run folder in the `agent.launched` event and the `links` view.
+
+## 0.3.2 — 2026-10-24
+
+- Add ticket-aware terminal badges with friendly objective labels and explicit standalone state.
+- Add explicit active-ticket context inheritance for CLI launches through shared ledger sessions.
+- Show shared-session counts and distinguish owner versus joined terminal bindings.
+
+## 0.3.1 — 2026-10-24
+
+- Add the supervised ticket loop and shared local session service to the desktop alpha.
+- Keep ticket selection, execution authorization, handback, and acceptance as separate gates.
+- Publish the Apple Silicon desktop package and Python CLI artifacts from the verified release commit.
+
 - Added a supervised ticket loop to the CLI: `tickets`, `ticket`, `ticket-import`,
   `work`, `links`, and `handback`. You pick the ticket and the agent, holds must be
   acknowledged before a launch, and nothing changes a ticket's stage, tags, or holds.
