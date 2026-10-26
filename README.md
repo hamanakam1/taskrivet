@@ -26,6 +26,8 @@ Keep persistent terminals, a clear objective, bounded context, and reviewable ev
 
 **Status: desktop alpha.** The released Mac application is unsigned and unnotarized. The core works independently of any external ticket service. Automated ticket selection, verified model/provider routing, source claims, process isolation, reboot recovery, and autonomous acceptance remain proposed work. See the [execution contract](docs/ticket-execution.md) and [security boundaries](SECURITY.md).
 
+An optional [source-owner execution client](docs/owner-execution.md) prepares one explicit request for a separately configured local owner, binds exact source and control revisions, and reconciles its durable receipt. Its supported inference policy prohibits paid or unknown entitlement. Bounded observation follows that one request; it does not select more tickets or establish accepted work.
+
 ## Start here
 
 | Your goal | Start with |
@@ -84,6 +86,8 @@ The Electron workspace requires Python 3.11+ and Node/npm for source development
 
 Shortcuts: `⌘T` new tab, `⌘D` split right, `⇧⌘D` split down, `⌘F` find, `⌘K` command palette, `⌘W` close pane, `⌘1`–`⌘9` switch tab, `⇧⌘F` focus mode. A second pane can join the same ledger session without claiming a second lease.
 
+A native SwiftUI workspace is available in [`macos/`](macos/). It covers the ticket loop, task inspector, terminal tabs, and read-only routing observations; the Electron workspace remains the reference until the native app reaches parity. See [native Mac setup](docs/macos.md) for developer builds and [routing observations](docs/routing.md) for source freshness, candidates, and holds. These observations do not authorize dispatch or establish a verified model recommendation.
+
 ### Supervised ticket work
 
 Configure an optional local ticket service and choose the ticket and agent yourself. This origin is a synthetic example; there is no default destination.
@@ -95,7 +99,7 @@ python3 -m taskrivet --format table ticket DEMO-42
 python3 -m taskrivet work DEMO-42 --tool codex --dry-run
 ```
 
-Review the plan and any holds before launching. The [ticket loop guide](docs/ticket-loop.md) covers hold acknowledgement, agent launchers, attachment, and confirmed handback. Acknowledgement does not clear a hold or authorize unattended work. Taskrivet does not claim or change the source ticket's stage, tags, or acceptance.
+Review the plan and any holds before launching. The [ticket loop guide](docs/ticket-loop.md) covers hold acknowledgement, agent launchers, attachment, and confirmed handback. Acknowledgement does not clear a hold or authorize unattended work. This supervised terminal loop does not claim or change the source ticket's stage, tags, or acceptance.
 
 ## How the boundaries work
 

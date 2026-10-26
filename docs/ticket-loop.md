@@ -210,8 +210,10 @@ scrollback and returns.
 `taskrivet handback TARGET` builds a report from the ledger and shows it: the local
 task state, the latest session, the latest checkpoint's summary, evidence, and next
 step, the finish evidence, self-reported tokens, recorded failures, and your
-`--note`. Reports are bounded to 4,000 bytes and end by saying that they do not
-accept the work or change the ticket. A preview never calls the adapter.
+`--note`. Reports are bounded to 3,960 bytes — room is reserved so the appended marker
+line still fits a 4,000-character note cap at the ticket service — and end by
+saying that they do not accept the work or change the ticket. A preview never
+calls the adapter.
 
 `--confirm` posts the report:
 

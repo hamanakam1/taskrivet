@@ -31,6 +31,10 @@ ENV = "/usr/bin/env"
 MAX_ARGS = 64
 DEFAULT_LEASE = 4 * 3600
 REPORT_BYTES = 4000
+# The posted note is the report plus a blank line and the 35-character
+# `taskrivet-handback:<id>` marker. Ticket services may cap the whole note at
+# REPORT_BYTES characters, so the report itself reserves room for that tail.
+MARKER_RESERVE = 40
 ADAPTER_OUTPUT = 1_000_000
 SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 NO_ACCEPTANCE = "Not stated on the ticket. Ask the operator before treating the work as done."
@@ -328,7 +332,8 @@ def work(
             pass
         raise
     ledger.record("agent.launched", task_id, tool=tool, terminal=terminal["id"], session=sid,
-                  ticket=snap["key"], launcher=launcher["source"], prompt=bool(text))
+                  ticket=snap["key"], launcher=launcher["source"], prompt=bool(text),
+                  run_dir=str(run["dir"]))
     return plan | {
         "task_id": task_id,
         "session_id": sid,
@@ -388,7 +393,7 @@ def report_body(ledger: Ledger, task_id: str, note: str | None = None) -> str:
     if note and note.strip():
         lines.append("Operator note: " + clip(note.strip(), 1000))
     lines.append("This report does not accept the work or change the ticket's stage, tags, or holds.")
-    return clip("\n".join(lines), REPORT_BYTES)
+    return clip("\n".join(lines), REPORT_BYTES - MARKER_RESERVE)
 
 
 def adapter_call(cfg: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:

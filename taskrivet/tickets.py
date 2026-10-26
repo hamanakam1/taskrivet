@@ -125,6 +125,11 @@ def get_ticket(origin: str, key: str, timeout: float = 30, now: float | None = N
         raise ValueError("Ticket service reported an incomplete read: " + str(payload["error"])[:200])
     if not isinstance(payload.get("key"), str) or not KEY.fullmatch(payload["key"]):
         raise ValueError("Ticket response has no usable key")
+    # An alias can resolve to a canonical ticket, but the service must bind
+    # that response to the exact key requested. Never import an unrelated
+    # ticket merely because its returned identifier is syntactically valid.
+    if payload["key"] != key and payload.get("requested_key") != key:
+        raise ValueError("Ticket response does not match the requested key")
     return snapshot(payload, base, now)
 
 

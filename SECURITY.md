@@ -41,7 +41,7 @@ proxies disabled and response sizes bounded. Ticket text is untrusted reference 
 `work` copies a bounded snapshot into a run folder (mode 0700, files 0600) and gives
 the agent its path; the agent may send that text to its model provider. Holds must be
 acknowledged before a launch, and an acknowledgement records your decision; it is not
-an authorization. Taskrivet never changes a ticket's stage, tags, or holds. The only
+an authorization. The terminal loop never changes a ticket's stage, tags, or holds. Its
 ticket write is a report you confirm, posted by your adapter, read back, and
 deduplicated by a marker. Reports quote ledger summaries and evidence verbatim, so
 review the preview for secrets before confirming. `handback --confirm` is refused when
@@ -49,6 +49,21 @@ review the preview for secrets before confirming. `handback --confirm` is refuse
 agent running as you can change its environment or run the adapter itself. The private
 config, `~/.taskrivet/config.json` by default, must be a regular file you own with mode
 0600. It must not hold credentials; an adapter keeps its own.
+
+The optional owner execution client sends one explicitly prepared request to an
+owner bound to the imported ticket's original source. It never calls an approval
+or legacy run-now endpoint. The owner applies its own authorization, pause,
+readiness, claim, and acceptance gates and owns any source changes. Each request
+binds exact card, control, and route revisions and prohibits paid or unknown
+entitlement in the supported inference lane. A configured local route is validated
+by the owner on each inference; it is not a measured quality or capacity claim.
+This transport is not a process sandbox or a general spending firewall.
+
+Execution intents are committed to a private journal before POST. Unknown results
+require readback of the exact request; neither a timeout nor a missing receipt
+allows replay. Keep the journal intact across restarts. Observation never admits
+additional tickets or launches processes. A returned owner run still needs source
+review and acceptance. See [owner execution boundaries](docs/owner-execution.md).
 
 Report sensitive vulnerabilities through GitHub private vulnerability reporting if
 enabled, rather than placing secrets or working exploits in public issues. If that

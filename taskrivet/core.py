@@ -620,13 +620,18 @@ class Ledger:
         with self.transaction():
             now = time.time()
             row = self.db.execute(
-                "SELECT s.task_id, s.revision, s.acknowledged FROM task_sources s JOIN tasks t ON t.id=s.task_id"
+                "SELECT s.task_id, s.origin, s.revision, s.acknowledged FROM task_sources s JOIN tasks t ON t.id=s.task_id"
                 " WHERE s.source=? AND s.ticket_key=? AND t.status IN (?,?,?,?)"
                 " ORDER BY s.imported DESC LIMIT 1",
                 (source, key, *OPEN_STATES),
             ).fetchone()
             refreshed = False
             if row is not None:
+                if row["origin"] != origin:
+                    raise Conflict(
+                        f"ticket {key} is already bound to another source origin;"
+                        " reconcile its existing task before importing from a different source"
+                    )
                 task_id = row["task_id"]
                 earlier = json.loads(row["acknowledged"]) if row["acknowledged"] else None
                 if not acknowledged and earlier is not None and all(h in earlier for h in holds):
@@ -791,9 +796,11 @@ class Ledger:
             if launched is not None:
                 data = json.loads(launched["data"])
                 agent = {"tool": data.get("tool"), "terminal": data.get("terminal"),
-                         "session": data.get("session"), "launched": launched["created"]}
+                         "session": data.get("session"), "launched": launched["created"],
+                         "run_dir": data.get("run_dir")}
             rows.append({
                 "ticket_key": r["ticket_key"],
+                "origin": r["origin"],
                 "task_id": tid,
                 "task_status": r["task_status"],
                 "title": r["title"],

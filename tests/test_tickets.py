@@ -96,6 +96,29 @@ class TicketReadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not found"):
             get_ticket(self.svc.origin, "SYN-404")
 
+    def test_wrong_ticket_response_is_refused(self):
+        for requested in (None, "SYN-3", "syn-1", 1, ["SYN-1"], {"key": "SYN-1"}):
+            with self.subTest(requested_key=requested):
+                self.svc.tickets["SYN-1"] = ticket("SYN-2", requested_key=requested)
+                with self.assertRaisesRegex(ValueError, "does not match the requested key"):
+                    get_ticket(self.svc.origin, "SYN-1")
+        self.assertTrue(all(method == "GET" for method, _, _ in self.svc.requests))
+
+    def test_alias_target_alone_does_not_bind_the_response(self):
+        self.svc.tickets["SYN-1"] = ticket("SYN-2", alias_of="SYN-2")
+        with self.assertRaisesRegex(ValueError, "does not match the requested key"):
+            get_ticket(self.svc.origin, "SYN-1")
+
+    def test_explicit_canonical_alias_preserves_requested_identity_and_holds(self):
+        self.svc.tickets["SYN-1"] = ticket(
+            "SYN-2", requested_key="SYN-1", alias_of="SYN-2", tags=["no-auto"])
+        result = get_ticket(self.svc.origin, "SYN-1")
+        self.assertEqual(result["key"], "SYN-2")
+        self.assertEqual(result["requested_key"], "SYN-1")
+        self.assertIn("No-auto execution hold", result["holds"])
+        self.assertFalse(result["execution_authorized"])
+        self.assertEqual(self.svc.requests[-1], ("GET", "/api/tix/ticket", {"key": "SYN-1", "seen": "0"}))
+
     def test_revision_tracks_the_work_definition_only(self):
         base = ticket("SYN-1")
         self.assertEqual(revision(base), revision(dict(base, stage="progress", tags=["x"])))
