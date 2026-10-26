@@ -18,7 +18,7 @@ from urllib.parse import quote, urlsplit
 from .dashboard import local_origin
 
 NAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.+@-]{0,127}$")
-SETTINGS = {"ticket_service", "ticket_adapter", "launchers", "workdir", "runs_dir"}
+SETTINGS = {"ticket_service", "ticket_adapter", "launchers", "workdir", "runs_dir", "execution"}
 
 
 def home() -> Path:
@@ -112,6 +112,28 @@ def _table(value: Any, label: str, keys: set[str]) -> dict[str, Any]:
 
 def validate(data: Any) -> dict[str, Any]:
     _table(data, "config", SETTINGS)
+    execution = data.get("execution")
+    if execution is not None:
+        _table(execution, "execution", {"bindings", "journal_path", "timeout"})
+        if "journal_path" in execution:
+            _absolute(execution["journal_path"], "execution.journal_path")
+        if "timeout" in execution:
+            value = execution["timeout"]
+            if type(value) not in (int, float) or not 1 <= value <= 30:
+                raise ValueError("execution.timeout must be 1-30 seconds")
+        bindings = execution.get("bindings", [])
+        if not isinstance(bindings, list) or len(bindings) > 32:
+            raise ValueError("execution.bindings must be a list of at most 32 source/owner bindings")
+        seen = set()
+        for binding in bindings:
+            _table(binding, "execution binding", {"source_origin", "owner_origin"})
+            if set(binding) != {"source_origin", "owner_origin"}:
+                raise ValueError("Each execution binding needs source_origin and owner_origin")
+            source = local_origin(binding["source_origin"])
+            local_origin(binding["owner_origin"])
+            if source in seen:
+                raise ValueError("An execution source origin may have only one owner binding")
+            seen.add(source)
     service = data.get("ticket_service")
     if service is not None:
         _table(service, "ticket_service", {"origin", "ticket_url", "timeout"})

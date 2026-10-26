@@ -42,6 +42,12 @@ work one ticket you choose from a local ticket service: it opens the agent you p
 terminal and posts a report back only when you confirm. Terminal commands are controlled by you;
 automated ticket selection and dispatch, model dispatch, and verified billing are future work. Terminal sessions survive desktop quit through Taskrivet’s own local service, but not service failure or reboot.
 
+An optional [source-owner execution client](docs/owner-execution.md) prepares one
+explicit request for a separately configured local owner, binds exact source and
+control revisions, and reconciles its durable receipt. It prohibits paid or unknown
+entitlement in the supported inference policy. Bounded observation follows that
+one request; it does not select more tickets or establish accepted work.
+
 ## Mac desktop app
 
 ```sh
@@ -331,8 +337,8 @@ python3 -m taskrivet handback DEMO-42 --confirm  # post it through your adapter
 folder with a bounded context file, and opens the agent in a terminal of the same session
 service the desktop uses, so the tab appears in both. Holds such as a `no-auto` tag or an
 unverified readiness verdict are shown, and `work` refuses until you acknowledge them with
-`--ack`. Acknowledging records your decision; it clears nothing. Taskrivet never changes a
-ticket's stage, tags, or holds, and never marks it done. The only ticket write is a report
+`--ack`. Acknowledging records your decision; it clears nothing. This terminal loop never changes a
+ticket's stage, tags, or holds, and never marks it done. Its ticket write is a report
 you confirm, posted through an adapter you configure, read back, and protected against
 duplicates by a stable marker.
 

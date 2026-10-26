@@ -73,6 +73,20 @@ def parser():
     t.add_argument('key'); t.add_argument('--url', help=origin)
     t = add('ticket-route', help='Read model routing observations and qualification gaps; launches nothing')
     t.add_argument('key'); t.add_argument('--url', help=origin)
+    for name in ('execution-preflight', 'execution-prepare'):
+        t = add(name, help='Read the bound owner preflight' if name.endswith('preflight') else 'Persist one immutable owner request intent; sends nothing')
+        t.add_argument('task', help='An already imported local task ID')
+        if name.endswith('prepare'):
+            t.add_argument('--request-id', help='Stable integration request ID (normally generated)')
+    for name in ('execution-inspect', 'execution-submit', 'execution-status', 'execution-observe'):
+        t = add(name, help={'execution-inspect': 'Inspect one local execution intent without network access',
+                           'execution-submit': 'Submit one prepared request once; uncertain requests only reconcile',
+                           'execution-status': 'Read the exact owner receipt for one existing intent',
+                           'execution-observe': 'Bounded receipt observation; never admits or submits tickets'}[name])
+        t.add_argument('request_id')
+        if name.endswith('observe'):
+            t.add_argument('--count', type=int, default=10, help='At most 100 receipt reads')
+            t.add_argument('--interval', type=float, default=2, help='0.1-30 seconds between reads')
     t = add('ticket-import', help='Bind one ticket revision to a local task; launches nothing')
     t.add_argument('key'); t.add_argument('--url', help=origin)
     t.add_argument('--ack', action='store_true', help='Record that you reviewed the current holds; clears nothing')
@@ -230,10 +244,35 @@ def ticket_command(a):
         ledger.close()
 
 
+def execution_command(a):
+    from . import config as settings, execution
+    cfg = settings.load()
+    if a.command == 'execution-preflight':
+        return execution.preflight(a.db, a.task, cfg)
+    path = execution.journal_path(a.db, cfg)
+    if a.command != 'execution-prepare' and not path.exists():
+        raise ValueError('No execution intent journal exists; prepare one request first')
+    journal = execution.Journal(path)
+    try:
+        if a.command == 'execution-prepare':
+            return execution.prepare(a.db, a.task, cfg, journal, a.request_id)
+        if a.command == 'execution-inspect':
+            return execution.inspect(journal, a.request_id)
+        if a.command == 'execution-submit':
+            return execution.submit(a.db, journal, a.request_id, cfg)
+        if a.command == 'execution-status':
+            return execution.reconcile(journal, a.request_id, cfg)
+        return execution.observe(journal, a.request_id, cfg, count=a.count, interval=a.interval)
+    finally:
+        journal.close()
+
+
 def main(argv=None):
     a = parser().parse_args(argv)
     ledger = None
     try:
+        if a.command.startswith('execution-'):
+            emit(a, execution_command(a));return
         if a.command == 'github-cycle':
             from .github_cycle import cycle
             emit(a, cycle(a.config), indent=None);return

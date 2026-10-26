@@ -150,6 +150,27 @@ def _work(r: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _execution(r: dict[str, Any]) -> str:
+    bound = r["binding"]
+    lines = [block([("Task", bound["task_id"]), ("Ticket", bound["ticket_key"]),
+                    ("Original source", bound["source_origin"]), ("Owner", bound["owner_origin"]),
+                    ("Request", r.get("request_id")), ("State", r["status"]),
+                    ("POST attempts", r.get("send_count")), ("Can submit", r.get("can_submit", False)),
+                    ("Client authorizes execution", False), ("Source acceptance required", True)]),
+             "", *bullets("Reasons", r["reason_codes"])]
+    preflight = r.get("preflight")
+    if preflight:
+        route = preflight["route"]
+        lines += ["", block([("Model", route["model"]), ("Engine", route["engine"]),
+                              ("Cost class", route["cost_class"]), ("Qualification", route["qualification"])]),
+                  "The owner validates its configured local inference binding on each call."]
+    receipt = r.get("receipt")
+    if receipt:
+        lines += ["", block([("Owner run", receipt["run_id"]), ("Owner result", receipt["owner_result"])])]
+    lines += ["", "A request or returned owner run does not establish accepted work. Unknown outcomes are never replayed."]
+    return "\n".join(lines)
+
+
 def _handback(r: dict[str, Any]) -> str:
     if r.get("preview"):
         adapter = "configured" if r["adapter_configured"] else "not configured"
@@ -249,6 +270,8 @@ RENDERERS: dict[str, Callable[[Any], str]] = {
     "tools": _tools, "config": _config,
     "events": lambda r: "\n".join(event_line(e) for e in r) or "(none)",
 }
+RENDERERS.update({name: _execution for name in (
+    "execution-preflight", "execution-prepare", "execution-inspect", "execution-submit", "execution-status", "execution-observe")})
 
 
 def render(command: str, result: Any) -> str:
