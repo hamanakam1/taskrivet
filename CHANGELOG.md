@@ -1,10 +1,47 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-10-25
+
+This is a preview release of the merged routing and execution-request foundation.
+
+- Add source-bound routing observations to the CLI and native workspace. Stale,
+  unavailable and unqualified evidence remains visible without selecting a model
+  or granting dispatch authority.
+- Add an explicit source-owner execution client with a private durable journal,
+  exact source/card/control/route binding, one POST per intent, and reconciliation
+  after lost acknowledgements or restart. Bounded observation follows one request;
+  it does not admit additional tickets or mark source work accepted.
+- Preserve the supported local-inference policy: paid and unknown-entitlement
+  routes are refused. A separately installed and configured owner must retain its
+  readiness, approval, claim, pause and independent acceptance gates.
+- Fix native terminal environment encoding, retain open terminals across tab
+  switches, and set working directories on child processes only. An unchecked
+  Electron context-inheritance option now opens a standalone terminal.
+- Read session handshake tokens through one validated file descriptor and include
+  the shared helper in desktop packages.
+- Strip debug metadata from the packaged native executable and Electron terminal
+  helpers before signing and archiving, so release downloads do not retain
+  absolute build-machine paths.
+- Add contributor guides, structured issue forms, roadmap/project support,
+  dependency review, CodeQL, and grouped dependency updates. Avoid duplicate PR
+  builds and cancel superseded native CI runs.
+- Align CLI, Python package and Electron version metadata, including the CLI
+  version correction previously published in 0.4.0.
+
+The native workspace remains a developer preview; visual interaction qualification
+is incomplete. Neither desktop is notarized. Owner installation and live ticket
+qualification, continuous admission, measured quality/latency ranking, and a
+paid-provider budget remain separate work. No live service is activated by this
+release. See `docs/owner-execution.md`, `docs/routing.md`, and `docs/macos.md`.
+
+## 0.4.0 — 2026-10-25
+
+- Correct the CLI package version to match the release metadata.
 
 - Add a native SwiftUI Mac workspace under macos/: ticket loop, task inspector,
   session attach, and embedded PTY terminals via SwiftTerm, with ledger reads
-  through CLI JSON only and all writes left to interactive operator terminals.
+  through CLI JSON. Observation commands may reconcile expired local leases;
+  interactive operator terminals retain the work/report/acceptance controls.
 - Reserve room for the handback marker line inside the 4,000-byte report budget,
   so a ticket service that caps the whole note cannot cut the marker off.
 - Record the run folder in the `agent.launched` event and the `links` view.

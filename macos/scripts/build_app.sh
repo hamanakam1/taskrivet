@@ -34,6 +34,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Taskrivet"
 chmod +x "$APP/Contents/MacOS/Taskrivet"
+# SwiftPM release binaries retain debug symbols with absolute build paths.
+# Strip the packaged copy before signing; failure must stop packaging.
+/usr/bin/strip -S "$APP/Contents/MacOS/Taskrivet"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

@@ -1,6 +1,6 @@
 # Security boundaries
 
-Taskrivet 0.3 is a trusted, single-user local coordination tool, not an authorization
+Taskrivet is a trusted, single-user local coordination tool, not an authorization
 server or sandbox. Anyone who can use the database can perform operator decisions.
 Session IDs identify attempts; they are not authentication tokens. Do not expose the
 Python API or database to untrusted clients or place the database on a shared host.
