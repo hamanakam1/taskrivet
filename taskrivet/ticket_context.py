@@ -10,6 +10,8 @@ from typing import Any
 
 
 SCHEMA = "taskrivet.ticket-context.v1"
+MAX_TEXT = 1000
+MAX_KEY = 128
 
 
 def _iso_now() -> str:
@@ -66,3 +68,20 @@ def build(detail: dict[str, Any], *, ticket: dict[str, Any] | None = None,
             "generated_at": generated_at or _iso_now(),
         },
     }
+
+
+def validate_bounds(envelope: Any) -> list[str]:
+    """Return bounded-envelope violations without interpreting authority."""
+    errors: list[str] = []
+    if not isinstance(envelope, dict):
+        return ["envelope must be an object"]
+    for section in ("ticket", "task", "session", "provenance"):
+        value = envelope.get(section)
+        if value is not None and not isinstance(value, dict):
+            errors.append(f"{section} must be an object")
+    for section in ("ticket", "task", "session", "provenance"):
+        value = envelope.get(section) or {}
+        for key, item in value.items():
+            if isinstance(item, str) and len(item) > (MAX_KEY if key in {"key", "id"} else MAX_TEXT):
+                errors.append(f"{section}.{key} exceeds bounded length")
+    return errors
