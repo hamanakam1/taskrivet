@@ -34,6 +34,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Taskrivet"
 chmod +x "$APP/Contents/MacOS/Taskrivet"
+mkdir -p "$APP/Contents/Resources/core"
+cp -R ../taskrivet "$APP/Contents/Resources/core/taskrivet"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
