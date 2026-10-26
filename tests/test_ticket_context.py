@@ -40,6 +40,14 @@ class TicketContextTests(unittest.TestCase):
         result = build(detail, ticket={"key": "SYN-1"})
         self.assertEqual(result["session"]["binding"], "owner")
 
+    def test_authority_claims_are_never_copied(self):
+        detail = self.detail()
+        detail["authority"] = {"execution_authorized": True, "ticket_mutation": True}
+        result = build(detail, ticket={"key": "SYN-1"})
+        self.assertFalse(result["authority"]["execution_authorized"])
+        self.assertFalse(result["authority"]["ticket_mutation"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
