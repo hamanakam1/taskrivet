@@ -12,15 +12,21 @@ function privateDirectory(dir){
 }
 function startService({dir,token,spawn=pty.spawn}){
   privateDirectory(dir);
-  const socketPath=path.join(dir,'sessions.sock'), sessions=new Map(), clients=new Set();
+  const socketPath=path.join(dir,'sessions.sock'), registryPath=path.join(dir,'registry.json'), sessions=new Map(), clients=new Set();
+  function writeRegistry(){
+    const rows=[...sessions.values()].map(t=>({id:t.id,task:t.task,session:t.session,binding:t.binding||'standalone',state:t.state,pid:t.proc.pid,cwd:t.cwd,createdAt:t.createdAt,lastHeartbeat:t.lastHeartbeat,updatedAt:Date.now()}));
+    const tmp=registryPath+'.tmp';fs.writeFileSync(tmp,JSON.stringify({version:1,updatedAt:Date.now(),sessions:rows})+'\n',{mode:0o600});fs.renameSync(tmp,registryPath);
+  }
   function snapshot(t){
+    t.lastHeartbeat=Date.now();
     const sharedCount=t.session?[...sessions.values()].filter(item=>item.session===t.session).length:0;
     return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,binding:t.binding||null,
       ticketContext:t.task?{schema:'taskrivet.ticket-context.v1',ticket:{key:t.task},
         session:{id:t.session||null,binding:t.binding||'standalone',shared_count:sharedCount},
         authority:{context_readonly:true,ticket_mutation:false,acceptance:false,execution_authorized:false},
-        provenance:{source:'taskrivet desktop session service'}}:null,
-      shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};
+      provenance:{source:'taskrivet desktop session service'}}:null,
+      shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref,
+      createdAt:t.createdAt,lastHeartbeat:t.lastHeartbeat};
   }
   function send(c,message){
     if(c.destroyed)return;
@@ -30,7 +36,8 @@ function startService({dir,token,spawn=pty.spawn}){
   function event(kind,payload){for(const c of clients)send(c,{event:kind,payload});}
   function record(id){const t=sessions.get(id);if(!t)throw new Error('Unknown terminal; no command was replayed');return t;}
   function dispatch(op,data={}){
-    if(op==='list')return [...sessions.values()].map(snapshot);
+    if(op==='list'){const rows=[...sessions.values()].map(snapshot);writeRegistry();return rows;}
+    if(op==='registry'){try{return JSON.parse(fs.readFileSync(registryPath,'utf8'));}catch{return {version:1,updatedAt:null,sessions:[]};}}
     if(op==='create'){
       if(sessions.size>=MAX_TABS)throw new Error('Limit of '+MAX_TABS+' terminal tabs reached');
       const cwd=policy.directory(data.cwd), shell=policy.text(data.shell,'executable',4096);
@@ -40,9 +47,10 @@ function startService({dir,token,spawn=pty.spawn}){
       for(const key of ['title','kind','ref','binding'])if(data[key]!=null)policy.text(data[key],key,256);
       const proc=spawn(shell,data.args,{name:'xterm-256color',cols:100,rows:30,cwd,
         env:{...process.env,ELECTRON_RUN_AS_NODE:undefined,TERM:'xterm-256color',COLORTERM:'truecolor',TASKRIVET_DB:data.db}});
-      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,binding:data.binding||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false,
+      const t={id:randomUUID(),proc,cwd,shell,task:data.task||null,session:data.session||null,binding:data.binding||null,state:'running',chunks:[],seq:0,bytes:0,pending:'',paused:false,createdAt:Date.now(),lastHeartbeat:Date.now(),
         title:data.title||null,kind:data.kind||'shell',ref:data.ref||null};
       sessions.set(t.id,t);
+      writeRegistry();
       function flush(){
         if(!t.pending)return;
         const text=t.pending.slice(0,65536);t.pending=t.pending.slice(text.length);
@@ -53,7 +61,7 @@ function startService({dir,token,spawn=pty.spawn}){
       }
       t.timer=setInterval(flush,16);
       proc.onData(text=>{t.pending+=text;if(t.pending.length>262144&&!t.paused){proc.pause();t.paused=true;}});
-      proc.onExit(({exitCode})=>{clearInterval(t.timer);while(t.pending)flush();t.state='exited';t.exitCode=exitCode;event('terminal:exit',{id:t.id,exitCode});});
+      proc.onExit(({exitCode})=>{clearInterval(t.timer);while(t.pending)flush();t.state='exited';t.exitCode=exitCode;t.lastHeartbeat=Date.now();writeRegistry();event('terminal:exit',{id:t.id,exitCode});});
       return snapshot(t);
     }
     const t=record(data.id);
@@ -64,7 +72,7 @@ function startService({dir,token,spawn=pty.spawn}){
     }
     if(op==='resize'){policy.dimensions(data.cols,data.rows);if(t.state==='running')t.proc.resize(data.cols,data.rows);return true;}
     if(op==='stop'){if(t.state==='running')t.proc.kill();return true;}
-    if(op==='remove'){if(t.state==='running')throw new Error('Stop terminal before closing its tab');sessions.delete(t.id);return true;}
+    if(op==='remove'){if(t.state==='running')throw new Error('Stop terminal before closing its tab');sessions.delete(t.id);writeRegistry();return true;}
     throw new Error('Unsupported session operation');
   }
   const server=net.createServer(c=>{

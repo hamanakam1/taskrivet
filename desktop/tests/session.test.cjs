@@ -38,6 +38,12 @@ test('ticket session snapshots carry a read-only context envelope',async()=>{
   client.disconnect();await service.close();
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
+test('registry records bounded session identity and heartbeat',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tr-registry-'));fs.chmodSync(dir,0o700);fs.writeFileSync(path.join(dir,'token'),'registry-token',{mode:0o600});
+ const service=startService({dir,token:'registry-token',spawn:fakeSpawn});await service.ready;
+ try{const client=new SessionClient(dir);const first=await client.call('create',{cwd:dir,shell:'/bin/sh',args:[],task:'SYN-REG',session:'sess-reg',binding:'owner'});const registry=await client.call('registry');assert.equal(registry.version,1);assert.equal(registry.sessions[0].id,first.id);assert.equal(registry.sessions[0].task,'SYN-REG');assert.equal(registry.sessions[0].binding,'owner');assert.equal(typeof registry.sessions[0].lastHeartbeat,'number');assert.equal(fs.statSync(path.join(dir,'registry.json')).mode&0o077,0);client.disconnect();await service.close();}
+ finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
 test('unauthenticated requests cannot create processes',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tr-auth-'));fs.chmodSync(dir,0o700);let calls=0;
  const service=startService({dir,token:'secret',spawn:()=>{calls++;return fakeSpawn();}});await service.ready;
