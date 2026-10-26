@@ -4,6 +4,7 @@ const net=require('node:net'), fs=require('node:fs'), path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const pty=require('node-pty');
 const policy=require('./policy.cjs');
+const {readSessionToken}=require('./session-token.cjs');
 const VERSION=1, MAX_FRAME=32*1024*1024, MAX_TABS=24;
 function privateDirectory(dir){
   fs.mkdirSync(dir,{recursive:true,mode:0o700});
@@ -92,9 +93,7 @@ if(require.main===module){
   const dir=process.argv[2];
   try{
     privateDirectory(dir);
-    const tokenPath=path.join(dir,'token'),st=fs.lstatSync(tokenPath);
-    if(!st.isFile()||st.isSymbolicLink()||st.uid!==process.getuid()||(st.mode&0o077))throw new Error('Unsafe token file');
-    const service=startService({dir,token:fs.readFileSync(tokenPath,'utf8')});
+    const service=startService({dir,token:readSessionToken(path.join(dir,'token'))});
     service.ready.catch(()=>process.exit(1));
     for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>service.close().finally(()=>process.exit(0)));
   }catch{process.exit(1);}
