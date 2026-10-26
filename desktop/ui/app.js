@@ -744,7 +744,7 @@ function renderDashboard(){
 async function loadDashboard(offset=0){
   $('dashboard-refresh').disabled=true;$('dashboard-next').disabled=true;$('dashboard-prev').disabled=true;
   try{const page=await api.ledger('dashboard',{url:$('dashboard-url').value,status:$('dashboard-status').value,offset});dashboardPage=page;dashboardOffset=offset;
-  $('dashboard-summary').textContent=`${page.returned} work tickets returned · source total ${page.source_total??'unknown'} · offset ${offset} · source generated ${page.source_generated_at??'unknown'} · ${page.stale?'STALE / UNKNOWN':'source reports fresh'} · fetched ${new Date().toLocaleTimeString()}. ${page.coverage}`;
+  $('dashboard-summary').textContent=`${page.returned} work tickets returned · source total ${page.source_total??'unknown'} · offset ${offset} · source generated ${page.source_generated_at??'unknown'} · ${page.stale?'STALE / UNKNOWN':'source reports fresh'} · fetched ${new Date().toLocaleTimeString()}. ${page.coverage} · handoff taskrivet.handoff-receipt.v1 · history taskrivet.handoff-history.v1`;
   $('dashboard-project').replaceChildren(new Option('All returned projects',''));for(const p of page.projects)$('dashboard-project').add(new Option(p,p));
   $('dashboard-prev').disabled=offset===0;$('dashboard-next').disabled=page.has_more!==true;renderDashboard();
   }catch(e){dashboardPage=null;$('dashboard-list').replaceChildren();$('dashboard-summary').textContent='Source unavailable or incomplete. No tickets admitted; refresh to retry.';throw e;}finally{$('dashboard-refresh').disabled=false;}
