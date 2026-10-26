@@ -1,13 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-25
 
 - Add a native SwiftUI Mac workspace under macos/: ticket loop, task inspector,
   session attach, and embedded PTY terminals via SwiftTerm, with ledger reads
   through CLI JSON only and all writes left to interactive operator terminals.
+  Ships as an unsigned ad-hoc-signed Taskrivet.app (org.taskrivet.native) that
+  coexists with the Electron alpha. See docs/macos.md.
 - Reserve room for the handback marker line inside the 4,000-byte report budget,
   so a ticket service that caps the whole note cannot cut the marker off.
 - Record the run folder in the `agent.launched` event and the `links` view.
+- Fix the CLI reporting a stale package version after the 0.3.x releases.
 
 ## 0.3.2 — 2026-10-24
 
