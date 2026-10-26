@@ -32,6 +32,8 @@ def parser():
     g=add('github-cycle');g.add_argument('--config',required=True)
     d = add('dashboard-preview'); d.add_argument('--url', required=True, help='Explicit local ticket-service origin'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
     d = add('dashboard-context', help='Project one Taskrivet session envelope for a dashboard reader'); d.add_argument('--file', required=True, help='JSON envelope file')
+    d = add('dashboard-handoff', help='Submit bounded context for local Dashboard confirmation'); d.add_argument('--file', required=True, help='JSON envelope file'); d.add_argument('--url', default='http://127.0.0.1:7878', help='Explicit local dashboard origin')
+    d = add('dashboard-history', help='Read bounded Dashboard handoff history (evidence only)'); d.add_argument('--limit', type=int, default=20); d.add_argument('--url', default='http://127.0.0.1:7878', help='Explicit local dashboard origin')
     b = add('tools'); b.add_argument('--history', action='store_true')
     o = add('opencode-sessions', help='List local OpenCode TUI session metadata')
     o.add_argument('--limit', type=int, default=60)
@@ -249,6 +251,14 @@ def main(argv=None):
         if a.command == 'dashboard-context':
             from .dashboard import project_session_context
             emit(a, project_session_context(json.loads(Path(a.file).read_text())))
+            return
+        if a.command == 'dashboard-handoff':
+            from .handoff import submit
+            emit(a, submit(a.url, json.loads(Path(a.file).read_text())))
+            return
+        if a.command == 'dashboard-history':
+            from .handoff import history
+            emit(a, history(a.url, a.limit))
             return
         if a.command == 'tools':
             from .tools import inventory
