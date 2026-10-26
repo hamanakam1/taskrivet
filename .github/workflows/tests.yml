@@ -2,8 +2,12 @@ name: tests
 on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   unittest:
+    timeout-minutes: 15
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -19,6 +23,7 @@ jobs:
       - run: taskrivet --help
   desktop:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -30,3 +35,17 @@ jobs:
         working-directory: desktop
       - run: npm run build:mac
         working-directory: desktop
+  required-checks:
+    name: Required checks
+    if: ${{ always() }}
+    needs: [unittest, desktop]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require Python and desktop success
+        env:
+          PYTHON_RESULT: ${{ needs.unittest.result }}
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
+        run: |
+          test "$PYTHON_RESULT" = success
+          test "$DESKTOP_RESULT" = success
