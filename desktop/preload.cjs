@@ -3,6 +3,7 @@ contextBridge.exposeInMainWorld('workspace', {
   bootstrap:()=>ipcRenderer.invoke('bootstrap'),
   opencodeSessions:options=>ipcRenderer.invoke('opencode:sessions',options),
   ledger:(action,data)=>ipcRenderer.invoke('ledger',action,data),
+  shareContext:(envelope,url)=>ipcRenderer.invoke('dashboard:share-context',envelope,url),
   chooseDirectory:()=>ipcRenderer.invoke('choose-directory'),
   createTerminal:options=>ipcRenderer.invoke('terminal:create',options),
   write:(id,data)=>ipcRenderer.invoke('terminal:write',id,data),

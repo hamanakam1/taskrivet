@@ -114,6 +114,15 @@ handle('ledger', async (action, data) => {
   }
   return ledger(policy.ledgerArgs(action, data));
 });
+handle('dashboard:share-context', async (envelope, origin='http://127.0.0.1:7878') => {
+  if (!envelope || envelope.schema !== 'taskrivet.ticket-context.v1') throw new Error('Invalid Taskrivet context envelope.');
+  const target = new URL(origin);
+  if (target.protocol !== 'http:' || !['127.0.0.1','localhost','::1'].includes(target.hostname) || target.pathname !== '/') throw new Error('Dashboard origin must be local and explicit.');
+  const response = await fetch(target.origin + '/api/taskrivet/session-context', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(envelope),redirect:'error'});
+  const body = await response.json();
+  if (!response.ok || !body.ok) throw new Error(body.error || `Dashboard rejected context (${response.status}).`);
+  return body;
+});
 handle('choose-directory', async () => {
   const result = await dialog.showOpenDialog(win, {properties:['openDirectory']});
   return result.canceled ? null : result.filePaths[0];

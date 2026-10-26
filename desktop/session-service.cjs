@@ -13,7 +13,15 @@ function privateDirectory(dir){
 function startService({dir,token,spawn=pty.spawn}){
   privateDirectory(dir);
   const socketPath=path.join(dir,'sessions.sock'), sessions=new Map(), clients=new Set();
-  function snapshot(t){return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,binding:t.binding||null,shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};}
+  function snapshot(t){
+    const sharedCount=t.session?[...sessions.values()].filter(item=>item.session===t.session).length:0;
+    return {id:t.id,cwd:t.cwd,task:t.task,session:t.session,binding:t.binding||null,
+      ticketContext:t.task?{schema:'taskrivet.ticket-context.v1',ticket:{key:t.task},
+        session:{id:t.session||null,binding:t.binding||'standalone',shared_count:sharedCount},
+        authority:{context_readonly:true,ticket_mutation:false,acceptance:false,execution_authorized:false},
+        provenance:{source:'taskrivet desktop session service'}}:null,
+      shell:t.shell,state:t.state,exitCode:t.exitCode,chunks:t.chunks,pid:t.proc.pid,title:t.title,kind:t.kind,ref:t.ref};
+  }
   function send(c,message){
     if(c.destroyed)return;
     if(c.writableLength>MAX_FRAME){c.destroy();return;}

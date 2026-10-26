@@ -2,7 +2,7 @@ import unittest
 import contextlib
 import io
 from unittest.mock import patch
-from taskrivet.dashboard import endpoint, project_payload
+from taskrivet.dashboard import endpoint, project_payload, project_session_context
 from taskrivet.cli import parser
 
 class DashboardTests(unittest.TestCase):
@@ -42,3 +42,22 @@ class DashboardTests(unittest.TestCase):
     def test_cases_are_not_misrepresented_as_work_tickets(self):
         p=self.payload();p['tickets'].append({'kind':'case','key':'fake-case'})
         self.assertEqual(project_payload(p,'local','planned',0)['returned'],1)
+
+    def test_session_context_adapter_minimizes_and_denies_authority(self):
+        envelope = {
+            'schema': 'taskrivet.ticket-context.v1',
+            'ticket': {'key': 'SYN-1', 'title': 'Synthetic ticket', 'detail': 'private'},
+            'task': {'id': 'demo', 'objective': 'Show context', 'acceptance': 'Badge visible', 'scope': ['private']},
+            'session': {'id': 's1', 'status': 'active', 'binding': 'joined', 'shared_count': 2},
+            'authority': {'execution_authorized': True, 'ticket_mutation': True},
+            'provenance': {'source': 'fixture', 'generated_at': '2026-01-01T00:00:00Z'},
+        }
+        result = project_session_context(envelope)
+        self.assertEqual(result['session']['binding'], 'joined')
+        self.assertEqual(result['session']['shared_count'], 2)
+        self.assertFalse(result['authority']['execution_authorized'])
+        self.assertFalse(result['authority']['ticket_mutation'])
+        self.assertNotIn('private', str(result))
+
+    def test_session_context_adapter_rejects_unknown_schema(self):
+        with self.assertRaises(ValueError): project_session_context({'schema': 'other'})

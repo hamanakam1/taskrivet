@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="../node_modules/@xterm/xterm/css/xterm.css"><link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="titlebar"><span class="wordmark">TASKRIVET <i> / </i> WORKSPACE</span><span class="local"><b></b> LOCAL · DESKTOP ALPHA</span></header>
+<header class="titlebar"><span class="wordmark">TASKRIVET <i> / </i> WORKSPACE</span><span class="local"><b></b> LOCAL · <span id="app-version">VERSION LOADING</span></span></header>
 <div class="layout">
 <aside class="sidebar">
 <div class="brand"><span class="brand-icon">&gt;_</span><div><strong>Taskrivet</strong><small>Keep work moving.</small></div></div>
@@ -62,7 +62,7 @@
 <div class="insp-block" id="insp-failures-block" hidden><label>FAILURES</label><div id="insp-failures"></div></div>
 <div class="insp-block" id="insp-events-block" hidden><label>LEDGER EVENTS</label><div id="insp-events"></div></div>
 </div>
-<div class="actions"><button id="checkpoint" disabled>Record checkpoint</button><button id="fail" disabled>Record failure</button><button id="finish" disabled>Submit for review</button><button id="accept" disabled>Accept result</button><button id="retry" disabled>Retry after reconciliation</button><button id="pack" disabled>Inspect context packet</button></div>
+<div class="actions"><button id="checkpoint" disabled>Record checkpoint</button><button id="fail" disabled>Record failure</button><button id="finish" disabled>Submit for review</button><button id="accept" disabled>Accept result</button><button id="retry" disabled>Retry after reconciliation</button><button id="pack" disabled>Inspect context packet</button><button id="share-context" disabled>Share read-only context</button></div>
 <p class="inspector-note">Terminal output stays in memory. Only context and evidence you explicitly record enter the ledger. Recorded usage is reported, not measured.</p>
 </aside>
 </div>

@@ -17,7 +17,12 @@ function currentPane(){return activePaneId?terms.get(activePaneId)||null:null;}
 function terminal(){return currentPane();}
 async function refresh(){
   if(refreshing)return;refreshing=true;
-  try{state=await api.ledger('status');renderTasks();await loadDetail(true);renderInspector();renderFailures();$('ledger-status').textContent=`LOCAL LEDGER · ${state.tasks.length} TASKS · UPDATED ${new Date().toLocaleTimeString()}`;}
+  try{state=await api.ledger('status');renderTasks();await loadDetail(true);renderInspector();
+    if(detail&&detail.ticket_context&&detail.ticket_context.schema==='taskrivet.ticket-context.v1'){
+      try{await api.shareContext(detail.ticket_context,$('dashboard-url')?.value||'http://127.0.0.1:7878');$('terminal-hint').textContent=`Dashboard context synced · ${detail.ticket_context.ticket?.key||'standalone'}`;}
+      catch(e){$('terminal-hint').textContent='Dashboard context not connected · retrying on refresh.';}
+    }
+    renderFailures();$('ledger-status').textContent=`LOCAL LEDGER · ${state.tasks.length} TASKS · UPDATED ${new Date().toLocaleTimeString()}`;}
   catch(e){$('ledger-status').textContent='LEDGER UNAVAILABLE';error(e);}
   finally{refreshing=false;}
 }
@@ -77,13 +82,14 @@ function renderInspector(){
   $('session-status').textContent=session?String(session.status).toUpperCase():(p?String(p.state).toUpperCase():'NO SESSION');
   $('session-title').textContent=t?t.id:(p?paneLabel(p):'Keep the objective close.');
   $('session-objective').textContent=t?t.objective:'Open a terminal, or select a task from the queue, to see its brief.';
-  const actions=$('checkpoint'),fail=$('fail'),finish=$('finish'),accept=$('accept'),retry=$('retry'),pack=$('pack');
+  const actions=$('checkpoint'),fail=$('fail'),finish=$('finish'),accept=$('accept'),retry=$('retry'),pack=$('pack'),share=$('share-context');
   actions.disabled=!session||session.status!=='active';
   fail.disabled=!session||session.status!=='active';
   finish.disabled=!session||session.status!=='active'||(p&&p.state==='running');
   accept.disabled=!t||t.status!=='review';
   retry.disabled=!t||!['blocked','review'].includes(t.status);
   pack.disabled=!t;
+  share.disabled=!(detail&&detail.ticket_context&&detail.ticket_context.schema==='taskrivet.ticket-context.v1');
   const hasSession=!!session;
   showBlock('insp-session-block',hasSession||!!p);
   showBlock('insp-task-block',!!t);
@@ -178,8 +184,9 @@ function tabContext(tab){
   const status=t&&t.status?String(t.status):'context unavailable';
   const tone=!t?'stale':(['review','done','accepted'].includes(status)?'review':'bound');
   const session=p&&p.session,shared= session?[...terms.values()].filter(item=>item.session===session).length:0;
+  const envelope=p&&p.ticketContext;
   const ownerTab=session&&tabs.find(item=>{const first=terms.get(item.panes[0]);return first&&first.session===session;}),binding=p&&p.binding||(ownerTab&&ownerTab.id===tab.id?'owner':'joined');
-  return {kind:'ticket',label:taskId,tone,shared:shared>1,sharedCount:shared,binding,detail:t?`${status} · ${t.objective||'Objective unavailable'}`:'Ticket snapshot unavailable · refresh to re-read source state.',task:t};
+  return {kind:'ticket',label:taskId,tone,shared:shared>1,sharedCount:envelope?.session?.shared_count||shared,binding:envelope?.session?.binding||binding,detail:t?`${status} · ${t.objective||'Objective unavailable'}`:'Ticket snapshot unavailable · refresh to re-read source state.',task:t,authority:envelope?.authority};
 }
 function hideTabContext(){const pop=$('tab-context');pop.hidden=true;pop.replaceChildren();}
 function showTabContext(tab,anchor){
@@ -629,6 +636,7 @@ $('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.tar
   const info=await api.createTerminal({cwd:$('cwd').value,task:taskId,session,tool:launchTool});
   $('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();
 }finally{button.disabled=false;}});
+$('share-context').onclick=safe(async()=>{if(!detail||!detail.ticket_context)throw new Error('No ticket context is available to share.');if(!confirm('Share this read-only Taskrivet context with the local AI Dashboard?\n\nNo ticket mutation or execution authorization is included.'))return;const result=await api.shareContext(detail.ticket_context,$('dashboard-url')?.value||'http://127.0.0.1:7878');$('terminal-hint').textContent=`Dashboard received ${result.ticket?.key||'standalone'} context.`;});
 $('stop-terminal').onclick=safe(async()=>{if(terminal())await api.stop(activePaneId);});
 $('remove-terminal').onclick=()=>closePane(activePaneId);
 // Terminal focus: collapse the navigation so the terminal owns the window.
@@ -711,7 +719,7 @@ for(const name of Object.keys(definitions))$(name).onclick=()=>{
 $('action-form').onsubmit=safe(async e=>{e.preventDefault();const data={...Object.fromEntries(new FormData(e.target)),task:action.task,session:action.session};if('tokens'in data)data.tokens=Number(data.tokens);await api.ledger(action.name,data);$('action-dialog').close();await refresh();});
 $('pack').onclick=safe(async()=>{const result=await api.ledger('pack',{task:activeTaskId()});$('packet').textContent=JSON.stringify(result,null,2);$('packet-dialog').showModal();});
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
-(async()=>{try{const initial=await api.bootstrap();home=initial.home;$('github-repo').value=initial.githubRepo||'';for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){error(e);}})();
+(async()=>{try{const initial=await api.bootstrap();home=initial.home;$('app-version').textContent=`VERSION ${initial.version||'UNKNOWN'}`;$('github-repo').value=initial.githubRepo||'';for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){$('app-version').textContent='VERSION UNKNOWN';error(e);}})();
 setInterval(()=>{if(!document.hidden)refresh();},15000);
 
 function renderTools(){

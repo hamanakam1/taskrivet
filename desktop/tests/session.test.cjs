@@ -14,11 +14,29 @@ test('authenticated service retains process and output across client loss',async
   const first=await a.call('create',{cwd:dir,shell:'/bin/sh',args:[]});
   await a.call('write',{id:first.id,text:'BEFORE'});await wait(40);a.disconnect();await wait(20);
   const list=await b.call('list');assert.equal(list.length,1);assert.equal(list[0].id,first.id);assert.equal(list[0].pid,123);assert.equal(list[0].state,'running');assert.equal(list[0].chunks[0].data,'BEFORE');
+  assert.equal(list[0].ticketContext,null);
   await b.call('write',{id:first.id,text:'AFTER'});await wait(40);
   assert.deepEqual((await b.call('list'))[0].chunks.map(c=>c.data),['BEFORE','AFTER']);
   await assert.rejects(b.call('remove',{id:first.id}),/Stop terminal/);
   await b.call('stop',{id:first.id});assert.equal((await b.call('list'))[0].state,'exited');await b.call('remove',{id:first.id});assert.deepEqual(await b.call('list'),[]);
  }finally{a.disconnect();b.disconnect();await service.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('ticket session snapshots carry a read-only context envelope',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tr-context-'));fs.chmodSync(dir,0o700);
+ fs.writeFileSync(path.join(dir,'token'),'context-token',{mode:0o600});
+ const service=startService({dir,token:'context-token',spawn:fakeSpawn});await service.ready;
+ try{
+  const client=new SessionClient(dir);
+  const first=await client.call('create',{cwd:dir,shell:'/bin/sh',args:[],task:'SYN-1',session:'sess-1',binding:'owner'});
+  const second=await client.call('create',{cwd:dir,shell:'/bin/sh',args:[],task:'SYN-1',session:'sess-1',binding:'joined'});
+  assert.equal(first.ticketContext.schema,'taskrivet.ticket-context.v1');
+  const snapshots=await client.call('list');
+  assert.equal(snapshots.find(item=>item.id===first.id).ticketContext.session.shared_count,2);
+  assert.equal(second.ticketContext.session.binding,'joined');
+  assert.equal(first.ticketContext.authority.execution_authorized,false);
+  assert.equal(first.ticketContext.authority.ticket_mutation,false);
+  client.disconnect();await service.close();
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('unauthenticated requests cannot create processes',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tr-auth-'));fs.chmodSync(dir,0o700);let calls=0;

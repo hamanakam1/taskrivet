@@ -10,6 +10,7 @@ from typing import Any
 
 MAX_BYTES = 8 * 1024 * 1024
 STATES = ("planned", "backlog", "progress", "blocked", "show_tell")
+CONTEXT_SCHEMA = "taskrivet.ticket-context.v1"
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -173,6 +174,36 @@ def project_payload(payload: dict[str, Any], origin: str, state: str, offset: in
         "tickets": rows,
         "dispatch_enabled": False,
         "tool_selection": "Pending task context and capability qualification",
+    }
+
+
+def project_session_context(envelope: Any) -> dict[str, Any]:
+    """Minimize one Taskrivet context envelope for a dashboard reader.
+
+    This is a projection only: it accepts no authority claims and never reads
+    terminal output, ticket detail beyond the bounded envelope, or credentials.
+    """
+    if not isinstance(envelope, dict) or envelope.get("schema") != CONTEXT_SCHEMA:
+        raise ValueError("Unsupported Taskrivet context envelope")
+    ticket = envelope.get("ticket") if isinstance(envelope.get("ticket"), dict) else {}
+    task = envelope.get("task") if isinstance(envelope.get("task"), dict) else {}
+    session = envelope.get("session") if isinstance(envelope.get("session"), dict) else {}
+    provenance = envelope.get("provenance") if isinstance(envelope.get("provenance"), dict) else {}
+    binding = session.get("binding") if session.get("binding") in ("owner", "joined", "standalone") else "standalone"
+    return {
+        "adapter": "taskrivet-session-context",
+        "schema": CONTEXT_SCHEMA,
+        "ticket": {"key": ticket.get("key"), "title": str(ticket.get("title") or "")[:500]},
+        "task": {"id": task.get("id"), "objective": str(task.get("objective") or "")[:1000],
+                 "acceptance": str(task.get("acceptance") or "")[:1000]},
+        "session": {"id": session.get("id"), "status": session.get("status"),
+                    "binding": binding, "shared_count": session.get("shared_count")
+                    if type(session.get("shared_count")) is int and session.get("shared_count") >= 0 else 0},
+        "authority": {"context_readonly": True, "ticket_mutation": False,
+                      "acceptance": False, "execution_authorized": False},
+        "provenance": {"source": str(provenance.get("source") or "Taskrivet")[:200],
+                       "generated_at": provenance.get("generated_at")},
+        "dispatch_enabled": False,
     }
 
 

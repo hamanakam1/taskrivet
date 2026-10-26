@@ -31,6 +31,7 @@ def parser():
         g=add(command);g.add_argument('--repo',required=True);g.add_argument('--sync-db',default=str(Path.home()/'.taskrivet'/'github.sqlite'))
     g=add('github-cycle');g.add_argument('--config',required=True)
     d = add('dashboard-preview'); d.add_argument('--url', required=True, help='Explicit local ticket-service origin'); d.add_argument('--status', choices=['planned','backlog','progress','blocked','show_tell'], default='planned'); d.add_argument('--offset', type=int, default=0)
+    d = add('dashboard-context', help='Project one Taskrivet session envelope for a dashboard reader'); d.add_argument('--file', required=True, help='JSON envelope file')
     b = add('tools'); b.add_argument('--history', action='store_true')
     o = add('opencode-sessions', help='List local OpenCode TUI session metadata')
     o.add_argument('--limit', type=int, default=60)
@@ -244,6 +245,10 @@ def main(argv=None):
         if a.command == 'dashboard-preview':
             from .dashboard import preview
             emit(a, preview(a.url,a.status,a.offset))
+            return
+        if a.command == 'dashboard-context':
+            from .dashboard import project_session_context
+            emit(a, project_session_context(json.loads(Path(a.file).read_text())))
             return
         if a.command == 'tools':
             from .tools import inventory

@@ -492,6 +492,7 @@ class Ledger:
         current = next((s for s in sessions if s["id"] == session_id), None)
         if current is None and sessions:
             current = sessions[-1]
+        source = self.task_source(task_id)
         checkpoints = [
             dict(r)
             for r in self.db.execute(
@@ -544,6 +545,7 @@ class Ledger:
             }
         except Conflict as exc:
             pack_view = {"bytes": None, "items": len(context), "omitted": [], "error": str(exc)}
+        from .ticket_context import build as build_ticket_context
         return {
             "task": {
                 "id": task["id"],
@@ -565,6 +567,14 @@ class Ledger:
             "events": events,
             "claims": claims,
             "pack": pack_view,
+            "ticket_context": build_ticket_context(
+                {"task": {
+                    "id": task["id"], "objective": task["objective"],
+                    "acceptance": task["acceptance"], "scope": scope,
+                }, "session": current or {}, "sessions": sessions},
+                ticket=({"key": source["ticket_key"], "revision": source["revision"],
+                          "title": source["title"]} if source else None),
+            ),
             "provenance": (
                 "Ledger records only. Reported usage, evidence, and context source labels are "
                 "operator-supplied; they are not measured cost, verified evidence, or authority."

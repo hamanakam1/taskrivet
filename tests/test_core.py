@@ -193,6 +193,9 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(view['pack']['items'], 1)
         self.assertIsNone(view['pack']['error'])
         self.assertIn('not measured cost', view['provenance'])
+        self.assertEqual(view['ticket_context']['schema'], 'taskrivet.ticket-context.v1')
+        self.assertEqual(view['ticket_context']['session']['binding'], 'standalone')
+        self.assertFalse(view['ticket_context']['authority']['execution_authorized'])
 
     def test_detail_claims_show_shared_resource_keys(self):
         self.l.add_task('b', 'Overlapping change', 'Tests pass', scope=['repo/search'])
