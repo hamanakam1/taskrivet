@@ -16,7 +16,7 @@ class Response:
 
 def result(**changes):
     payload = {
-        'ok': True, 'request_id': 'req-1', 'requires_local_confirmation': True,
+        'ok': True, 'schema': 'taskrivet.handoff-receipt.v1', 'request_id': 'req-1', 'requires_local_confirmation': True,
         'dispatch_enabled': False,
         'authority': {'context_readonly': True, 'ticket_mutation': False, 'acceptance': False, 'execution_authorized': False},
         'receipt': {'request_id': 'req-1', 'context_hash': 'a' * 64},

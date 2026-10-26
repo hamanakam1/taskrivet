@@ -12,8 +12,8 @@ class Response:
 
 
 def payload(**changes):
-    value = {'ok': True, 'mode': 'evidence-only', 'dispatch_enabled': False, 'execution_authorized': False,
-             'handoffs': [{'request_id': 'r1', 'evidence_only': True, 'execution_authorized': False}]}
+    value = {'ok': True, 'schema': 'taskrivet.handoff-history.v1', 'mode': 'evidence-only', 'dispatch_enabled': False, 'execution_authorized': False,
+             'handoffs': [{'schema': 'taskrivet.handoff-history.v1', 'request_id': 'r1', 'evidence_only': True, 'execution_authorized': False}]}
     value.update(changes)
     return value
 

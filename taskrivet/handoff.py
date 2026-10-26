@@ -38,13 +38,13 @@ def history(base: str, limit: int = 20, timeout: float = 10, max_bytes: int = MA
     if type(limit) is not int or not 1 <= limit <= 50:
         raise ValueError("History limit must be 1-50")
     result = _get_json(local_origin(base) + "/api/taskrivet/handoffs?" + urlencode({"limit": limit}), timeout, max_bytes)
-    if result.get("ok") is not True or result.get("mode") != "evidence-only" or result.get("execution_authorized") is not False or result.get("dispatch_enabled") is not False:
+    if result.get("ok") is not True or result.get("schema") != "taskrivet.handoff-history.v1" or result.get("mode") != "evidence-only" or result.get("execution_authorized") is not False or result.get("dispatch_enabled") is not False:
         raise ValueError("Dashboard history is not evidence-only")
     rows = result.get("handoffs")
     if not isinstance(rows, list) or len(rows) > limit:
         raise ValueError("Dashboard history is malformed or unbounded")
     for row in rows:
-        if not isinstance(row, dict) or row.get("evidence_only") is not True or row.get("execution_authorized") is not False:
+        if not isinstance(row, dict) or row.get("schema") != "taskrivet.handoff-history.v1" or row.get("evidence_only") is not True or row.get("execution_authorized") is not False:
             raise ValueError("Dashboard history contains an unsafe row")
     return result
 
@@ -84,6 +84,8 @@ def submit(base: str, envelope: Any, timeout: float = 10, max_bytes: int = MAX_B
         raise ValueError("Dashboard returned invalid JSON") from None
     if not isinstance(result, dict) or result.get("ok") is not True:
         raise ValueError("Dashboard did not accept the handoff")
+    if result.get("schema") != "taskrivet.handoff-receipt.v1":
+        raise ValueError("Unsupported Dashboard handoff protocol")
     if result.get("requires_local_confirmation") is not True:
         raise ValueError("Dashboard handoff is not confirmation-gated")
     if result.get("dispatch_enabled") is not False:
