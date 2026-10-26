@@ -52,20 +52,27 @@ window says so and nothing is faked.
 
 ## Lifecycle and authority
 
-The window never writes to the ledger. Work, checkpoints, reports, and
-acceptance run in the terminal tabs as interactive CLI sessions the operator
-drives; `handback --confirm` stays a typed confirmation, not a button.
+The window invokes observation CLI commands. Existing `status` and `links`
+reads can reconcile expired local leases; routing reads do not open the ledger.
+Work, checkpoints, reports, and acceptance run in the terminal tabs as
+interactive CLI sessions the operator drives; `handback --confirm` stays a
+typed confirmation, not a button.
 
 Terminals are real PTYs via SwiftTerm. A new shell tab opens a login shell in
 a folder the operator picks (nothing runs until a folder is chosen). GUI apps
 receive a sparse environment, so tabs get a curated base (`HOME`, `TERM`,
-`SHELL`, a stock `PATH`) plus `TASKRIVET_PYTHON`/`TASKRIVET_DB` when set; the
-login shell then sources the user's own profile on top. Shells are not
+`SHELL`, a stock `PATH`) plus the configured interpreter, ledger, config,
+session-service directory, and Python import path when set. Run-specific task,
+session, and context variables are not inherited. The login shell then sources
+the user's own profile on top. Shells are not
 sandboxed and programs launched in them can incur charges; the ledger's
 routing policy does not intercept manual terminal commands.
 
 Attach tabs run `taskrivet attach <terminal>`; Ctrl-] detaches and the
 terminal keeps running in the session service, as with the CLI.
+Switching tabs keeps their processes and scrollback alive. Closing a tab ends
+its local shell or attach client; closing an attach tab leaves the underlying
+session-service terminal running.
 
 ## Privacy
 

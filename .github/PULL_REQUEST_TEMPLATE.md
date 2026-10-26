@@ -1,36 +1,32 @@
-# Pull Request Template
+## Problem and result
 
-## Description
-<!-- Provide a clear description of what this PR does -->
+<!-- Explain the concrete problem and the resulting behavior. Link a public issue
+with "Fixes #..." only if this change meets its acceptance criteria. -->
 
-## Type of Change
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Documentation update
-- [ ] Refactoring (no functional changes)
-- [ ] Performance improvement
-- [ ] Test updates
+## Validation
 
-## Related Issues
-<!-- Link to related issues: Fixes #123, Closes #456 -->
+<!-- List the commands actually run and their results. Explain any checks skipped.
+Required project check: python3 -m unittest discover -s tests -v
+For desktop changes: cd desktop && npm ci && npm test
+For packaging changes: cd desktop && npm run build:mac
+For UI changes: describe the actual app/browser check with synthetic data.
+A passing build does not prove a downloaded release or a live integration works. -->
 
-## Testing
-- [ ] Backend tests pass (`python -m pytest`)
-- [ ] Extension tests pass (`node --test tests/*.mjs`)
-- [ ] Tested in Chrome/Edge
-- [ ] Tested in Firefox (if applicable)
-- [ ] Manual testing completed
+## Compatibility and boundaries
 
-## Privacy & Security
-- [ ] No secrets or credentials committed
-- [ ] Follows consent-first principles
-- [ ] Respects privacy model (local-first, opt-in)
-- [ ] Redaction applied where needed
+<!-- Note changed CLI/JSON contracts, ledger migrations, terminal lifecycle,
+integration data flow, or recovery behavior. Write "None" if not applicable.
+Keep routing eligibility, execution authorization, completion, and acceptance
+distinct. Explain any new provider calls or operator decisions. -->
 
-## Checklist
-- [ ] Code follows project style guidelines
-- [ ] Self-review completed
-- [ ] Comments added for complex logic
-- [ ] Documentation updated
-- [ ] No new warnings introduced
+## Review checklist
+
+- [ ] I read `AGENTS.md`, `CONTRIBUTING.md`, and `SECURITY.md`.
+- [ ] Tests and examples use synthetic data; the diff and attachments contain no credentials, private transcripts, real tickets, or local installation paths.
+- [ ] Documentation describes the behavior that is implemented and tested.
+- [ ] I identified any changes under `.github/` or to the privacy checker/tests for trusted maintainer review.
+
+<!-- Control-file changes intentionally fail the automatic public-content-privacy
+check. After reviewing the exact candidate SHA, a maintainer runs Public content
+privacy from main with this PR number and reviewed_control_changes=true.
+See docs/public-content-privacy.md. Never paste the private blocklist into this PR. -->

@@ -626,7 +626,7 @@ $('terminal-form').onsubmit=safe(async e=>{e.preventDefault();const button=e.tar
     if(!active||!record)throw new Error('Active ticket context is unavailable; refresh the ledger before opening this CLI.');
     session=record.id;
   }
-  const info=await api.createTerminal({cwd:$('cwd').value,task:taskId,session,tool:launchTool});
+  const info=await api.createTerminal({cwd:$('cwd').value,task:inherit?taskId:null,session,tool:launchTool});
   $('terminal-dialog').close();showView('workspace');addTerminal(info);await refresh();
 }finally{button.disabled=false;}});
 $('stop-terminal').onclick=safe(async()=>{if(terminal())await api.stop(activePaneId);});

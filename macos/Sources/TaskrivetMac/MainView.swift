@@ -89,10 +89,13 @@ struct TerminalAreaView: View {
                 Divider()
             }
             ZStack {
-                if let active = state.tabs.first(where: { $0.id == state.activeTab }) {
-                    terminalView(for: active)
-                        .id(active.id) // one NSView per tab, recreated only per tab
-                } else {
+                ForEach(state.tabs) { tab in
+                    terminalView(for: tab)
+                        .opacity(tab.id == state.activeTab ? 1 : 0)
+                        .allowsHitTesting(tab.id == state.activeTab)
+                        .accessibilityHidden(tab.id != state.activeTab)
+                }
+                if state.tabs.isEmpty {
                     VStack(spacing: 10) {
                         Image(systemName: "apple.terminal")
                             .font(.largeTitle)
@@ -136,6 +139,7 @@ struct TerminalAreaView: View {
                 executable: "/bin/zsh",
                 args: ["-l"],
                 workingDirectory: directory,
+                isActive: tab.id == state.activeTab,
                 onExit: { code in state.noteExit(tab: tab.id, code: code) },
                 onTitle: { title in
                     guard let index = state.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
@@ -149,6 +153,7 @@ struct TerminalAreaView: View {
                     executable: command.executable,
                     args: command.args,
                     workingDirectory: nil,
+                    isActive: tab.id == state.activeTab,
                     onExit: { code in state.noteExit(tab: tab.id, code: code) }
                 )
             } else {

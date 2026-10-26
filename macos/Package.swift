@@ -8,7 +8,7 @@ let package = Package(
         .executable(name: "TaskrivetMac", targets: ["TaskrivetMac"])
     ],
     dependencies: [
-        .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.5.0")
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.99.1")
     ],
     targets: [
         .executableTarget(

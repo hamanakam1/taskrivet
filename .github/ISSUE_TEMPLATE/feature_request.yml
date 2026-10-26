@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a concrete workflow improvement and how to verify it.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start open-ended ideas in [Discussions](https://github.com/hamanakam1/taskrivet/discussions). Use this form for a specific change.
+        Check the [roadmap](https://github.com/hamanakam1/taskrivet/blob/main/docs/roadmap.md) and existing issues first. Keep examples synthetic and deployment-neutral.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the roadmap and existing issues for this request.
+          required: true
+        - label: This report contains no private configuration, ticket data, or credentials.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Workflow and problem
+      description: Who encounters this problem, what are they trying to accomplish, and what blocks them today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-visible result, including the starting action and resulting state.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable checks would show this works? Include a failure or recovery case if applicable.
+      placeholder: |
+        - Given ... when ... then ...
+        - When the service is unavailable ...
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Data, execution, and integration boundaries
+      description: What data moves, where does it go, and which action needs the operator's decision? If agents, providers, or tickets are involved, explain who owns execution and acceptance.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and scope
+      description: Describe workarounds and what can stay outside this change. Link related public issues or discussions.
