@@ -25,6 +25,7 @@
   "build": {
     "appId": "org.taskrivet.desktop",
     "productName": "Taskrivet",
+    "afterExtract": "./scripts/strip-native-paths.cjs",
     "files": ["main.cjs", "preload.cjs", "policy.cjs", "session-service.cjs", "session-client.cjs", "session-token.cjs", "ui/**/*", "package.json"],
     "extraResources": [{"from": "../taskrivet", "to": "core/taskrivet", "filter": ["**/*.py"]}],
     "mac": {"category": "public.app-category.developer-tools", "identity": null},
