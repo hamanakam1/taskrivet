@@ -19,6 +19,8 @@ This is a preview release of the merged routing and execution-request foundation
   Electron context-inheritance option now opens a standalone terminal.
 - Read session handshake tokens through one validated file descriptor and include
   the shared helper in desktop packages.
+- Strip debug metadata from the packaged native executable before signing, so
+  release downloads do not retain absolute build-machine paths.
 - Add contributor guides, structured issue forms, roadmap/project support,
   dependency review, CodeQL, and grouped dependency updates. Avoid duplicate PR
   builds and cancel superseded native CI runs.
