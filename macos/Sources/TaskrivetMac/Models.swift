@@ -106,6 +106,7 @@ struct LinkRow: Codable, Equatable, Identifiable {
     var ticketKey: String
     var taskId: String
     var taskStatus: String
+    var origin: String?
     var title: String?
     var revision: String?
     var imported: Double?
@@ -270,6 +271,70 @@ struct Launcher: Codable, Equatable, Identifiable {
 
 struct LaunchersEnvelope: Codable, Equatable {
     var launchers: [Launcher]
+}
+
+// MARK: - ticket-route <key> --format json
+
+struct RouteTicket: Codable, Equatable {
+    var key: String
+    var revision: String
+}
+
+struct SelectedRoute: Codable, Equatable {
+    var id: String
+    var tool: String
+    var provider: String
+    var model: String
+    var costClass: String
+    var reason: String
+}
+
+struct RouteCandidate: Codable, Equatable, Identifiable {
+    var id: String
+    var tool: String
+    var provider: String
+    var model: String
+    var costClass: String
+    var eligible: Bool
+    var reasons: [String]
+    var rank: Int?
+}
+
+/// A source recommendation is a read view, never a launch or acceptance grant.
+struct RoutingEnvelope: Codable, Equatable {
+    var schema: String
+    var ticket: RouteTicket
+    var status: String
+    var observedAt: Double
+    var expiresAt: Double?
+    var sourceCurrent: Bool?
+    var selected: SelectedRoute?
+    var candidates: [RouteCandidate]
+    var holds: [String]
+    var reasons: [String]
+    var source: String
+    var executionAuthorized: Bool
+
+    func isCurrent(at now: Double) -> Bool {
+        guard sourceCurrent == true, let expiresAt else { return false }
+        return observedAt.isFinite && expiresAt.isFinite
+            && observedAt <= now + 5 && expiresAt > observedAt && expiresAt > now
+    }
+
+    func displayError(for key: String, origin: String? = nil) -> String? {
+        guard schema == "taskrivet.route.v1" else { return "Unsupported routing response. Update the CLI and app together." }
+        guard ticket.key == key else { return "The routing response belongs to a different ticket. Refresh to read this ticket again." }
+        if let origin {
+            let base = origin.hasSuffix("/") ? String(origin.dropLast()) : origin
+            guard source == base + "/api/engines" else {
+                return "The routing response belongs to a different ticket source."
+            }
+        }
+        guard !executionAuthorized else { return "The routing response unexpectedly claims execution authority." }
+        guard ["recommended", "held", "unavailable"].contains(status) else { return "Unknown routing status." }
+        guard status != "recommended" || selected != nil else { return "The source reported a recommendation without a selected route." }
+        return nil
+    }
 }
 
 // MARK: - doctor --format json

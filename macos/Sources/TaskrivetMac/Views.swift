@@ -183,10 +183,24 @@ struct InspectorView: View {
 
     var body: some View {
         if let error = state.detailError {
-            ContentUnavailableView("Detail unavailable", systemImage: "exclamationmark.triangle",
-                                   description: Text(error))
+            ScrollView {
+                VStack(spacing: 16) {
+                    ContentUnavailableView("Detail unavailable", systemImage: "exclamationmark.triangle",
+                                           description: Text(error))
+                    if let link = state.selectedLink { RoutingPanel(state: state, link: link) }
+                }
+                .padding()
+            }
         } else if let detail = state.detail {
-            DetailView(detail: detail, link: state.links.first { $0.taskId == detail.task.id })
+            DetailView(state: state, detail: detail, link: state.links.first { $0.taskId == detail.task.id })
+        } else if let link = state.selectedLink {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ProgressView("Reading task…")
+                    RoutingPanel(state: state, link: link)
+                }
+                .padding()
+            }
         } else {
             ContentUnavailableView("Select a task", systemImage: "sidebar.left",
                                    description: Text("Pick a ticket link or a ledger task to inspect its ledger record."))
@@ -195,6 +209,7 @@ struct InspectorView: View {
 }
 
 struct DetailView: View {
+    @ObservedObject var state: AppState
     let detail: DetailEnvelope
     let link: LinkRow?
 
@@ -202,7 +217,10 @@ struct DetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 taskSection
-                if let link { ticketSection(link) }
+                if let link {
+                    ticketSection(link)
+                    RoutingPanel(state: state, link: link)
+                }
                 if let session = detail.session { sessionSection(session) }
                 if let claims = detail.claims, !claims.isEmpty { claimsSection(claims) }
                 if let checkpoints = detail.checkpoints, !checkpoints.isEmpty { checkpointsSection(checkpoints) }

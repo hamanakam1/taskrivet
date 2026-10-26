@@ -121,6 +121,22 @@ def _import(r: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _ticket_route(r: dict[str, Any]) -> str:
+    lines = [block([
+        ("Ticket", r["ticket"]["key"]), ("Revision", r["ticket"]["revision"][:12] or None),
+        ("Routing", r["status"]), ("Observed", when(r["observed_at"])),
+        ("Source current", r["source_current"]),
+        ("Expires", when(r["expires_at"])), ("Source", r["source"]),
+        ("Execution authorized", False),
+    ]), "", *bullets("Ticket and freshness holds", r["holds"]), "",
+        *bullets("Routing evidence", r["reasons"])]
+    for candidate in r["candidates"]:
+        lines += ["", f"{cell(candidate['provider'])} / {cell(candidate['model'])}",
+                  f"  Tool: {cell(candidate['tool'])}; cost: {cell(candidate['cost_class'])}; unranked",
+                  *["  - " + cell(reason) for reason in candidate["reasons"]]]
+    return "\n".join(lines)
+
+
 def _work(r: dict[str, Any]) -> str:
     lines = [f"Ticket {r['ticket']['key']}: {r['ticket']['title']}", *bullets("Holds", r["holds"]),
              f"Tool: {r['tool']} ({r['launcher']['source']}; prompt {cell(r['launcher']['prompt'])})",
@@ -228,6 +244,7 @@ def generic(r: Any) -> str:
 
 RENDERERS: dict[str, Callable[[Any], str]] = {
     "tickets": _tickets, "ticket": _ticket, "ticket-import": _import, "work": _work, "handback": _handback,
+    "ticket-route": _ticket_route,
     "links": _links, "sessions": _sessions, "doctor": _doctor, "launchers": _launchers, "status": _status,
     "tools": _tools, "config": _config,
     "events": lambda r: "\n".join(event_line(e) for e in r) or "(none)",

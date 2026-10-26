@@ -14,6 +14,7 @@ final class ModelTests: XCTestCase {
               "ticket_key": "T-7",
               "task_id": "ticket-t-7",
               "task_status": "running",
+              "origin": "http://127.0.0.1:8080",
               "title": "Synthetic demo ticket",
               "revision": "abc123",
               "imported": 1699999000.0,
@@ -38,6 +39,7 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(envelope.schema, 2)
         let row = try XCTUnwrap(envelope.links.first)
         XCTAssertEqual(row.ticketKey, "T-7")
+        XCTAssertEqual(row.origin, "http://127.0.0.1:8080")
         XCTAssertEqual(row.unacknowledgedHolds, ["Readiness: UNKNOWN"])
         XCTAssertEqual(row.session?.leaseRemainingSeconds, 42)
         XCTAssertEqual(row.checkpoint?.nextStep, "do more")
@@ -60,6 +62,7 @@ final class ModelTests: XCTestCase {
         let envelope = try TaskrivetJSON.decode(LinksEnvelope.self, from: json)
         let row = try XCTUnwrap(envelope.links.first)
         XCTAssertNil(row.session)
+        XCTAssertNil(row.origin)
         XCTAssertNil(row.handback)
         XCTAssertEqual(row.unacknowledgedHolds, [])
         XCTAssertNil(envelope.provenance)

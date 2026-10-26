@@ -71,6 +71,8 @@ def parser():
     t.add_argument('--url', help=origin)
     t = add('ticket', help='Read one ticket with its holds and local tasks (read only)')
     t.add_argument('key'); t.add_argument('--url', help=origin)
+    t = add('ticket-route', help='Read model routing observations and qualification gaps; launches nothing')
+    t.add_argument('key'); t.add_argument('--url', help=origin)
     t = add('ticket-import', help='Bind one ticket revision to a local task; launches nothing')
     t.add_argument('key'); t.add_argument('--url', help=origin)
     t.add_argument('--ack', action='store_true', help='Record that you reviewed the current holds; clears nothing')
@@ -257,6 +259,10 @@ def main(argv=None):
             emit(a, config_command(a));return
         if a.command in ('tickets', 'ticket', 'ticket-import'):
             emit(a, ticket_command(a));return
+        if a.command == 'ticket-route':
+            from . import config as settings
+            from .routing import ticket_route
+            emit(a, ticket_route(a.key, cfg=settings.load(), origin=a.url));return
         if a.command == 'sessions':
             from .loop import sessions_view
             emit(a, sessions_view(a.db));return

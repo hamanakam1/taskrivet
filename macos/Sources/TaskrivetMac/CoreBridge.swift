@@ -177,6 +177,13 @@ final class CoreBridge: @unchecked Sendable {
         call(DetailEnvelope.self, ["detail", "--task", task])
     }
     func launchers() -> Result<LaunchersEnvelope, CoreBridgeError> { call(LaunchersEnvelope.self, ["launchers"]) }
+    static func ticketRouteArguments(key: String, origin: String) -> [String] {
+        ["ticket-route", key, "--url", origin]
+    }
+
+    func ticketRoute(key: String, origin: String) -> Result<RoutingEnvelope, CoreBridgeError> {
+        call(RoutingEnvelope.self, Self.ticketRouteArguments(key: key, origin: origin), timeout: 45)
+    }
     func doctor() -> Result<DoctorEnvelope, CoreBridgeError> { call(DoctorEnvelope.self, ["doctor"], timeout: 90) }
 
     /// Argument vector for an interactive `attach` in a terminal tab.

@@ -26,6 +26,16 @@ struct MainView: View {
             if state.bridge == nil && state.bridgeError == nil { state.connect() }
             state.refresh()
         }
+        .task {
+            // Read views stay current while this workspace is open. This is
+            // observation only; the timer never launches or claims work.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
+                state.refreshRouting()
+                state.refresh()
+            }
+        }
         .sheet(isPresented: $showDoctor) { DoctorSheet(state: state) }
     }
 

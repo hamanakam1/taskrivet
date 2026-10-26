@@ -96,6 +96,18 @@ class LedgerV2Tests(unittest.TestCase):
         self.assertIsNone(ledger.task_source(tid)["acknowledged"])
         self.assertIn("holds.acknowledged", [e["type"] for e in ledger.events()])
 
+    def test_different_origin_cannot_reuse_or_refresh_an_open_ticket_binding(self):
+        ledger = self.ledger()
+        tid = self.imp(ledger)["task_id"]
+        before = ledger.task_source(tid)
+        events = ledger.events()
+        for changed in ({}, {"refresh": True, "revision": "foreign-revision", "context": "foreign context"}):
+            with self.subTest(changed=changed):
+                with self.assertRaisesRegex(Conflict, "another source origin"):
+                    self.imp(ledger, origin="http://127.0.0.1:10", **changed)
+                self.assertEqual(ledger.task_source(tid), before)
+                self.assertEqual(ledger.events(), events)
+
     def test_closed_tasks_get_a_new_task_on_reimport(self):
         ledger = self.ledger()
         tid = self.imp(ledger)["task_id"]
@@ -136,6 +148,7 @@ class LedgerV2Tests(unittest.TestCase):
         ledger.record("agent.launched", tid, tool="codex", terminal="t-1", session=sid)
         ledger.checkpoint(sid, "Halfway", "diff:1", "finish", 10)
         row = ledger.links("SYN-1")["links"][0]
+        self.assertEqual(row["origin"], "http://127.0.0.1:9")
         self.assertEqual(row["task_status"], "running")
         self.assertEqual(row["session"]["status"], "active")
         self.assertEqual(row["session"]["reported_tokens"], 10)
