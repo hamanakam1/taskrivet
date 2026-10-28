@@ -1,8 +1,8 @@
 {
-  "confidence": 0.87,
+  "confidence": 0.92,
   "failure_category": "lease_expired",
   "heuristic_id": "heur-855ac43e0328",
   "id": "rule-heur-855ac43e0328",
-  "insight": "The execution bot attempted to retry or re-acquire a task whose ownership lease had already expired, skipping the required reconciliation step (acknowledging the stale worker's partial state and formally releasing/transferring the old lease) before re-grabbing ownership.",
-  "rule": "Before retrying any task that returns a lease-expired or ownership-expired error, always run a reconciliation pass\u2014inspect and clean up the prior worker's partial state, explicitly release or transfer the expired lease, and only then re-acquire the task; never blindly retry without this precondition."
+  "insight": "The bot attempted to retry or proceed with a lease-gated operation (context auto-check) after the ownership lease had already expired, failing to reconcile or release the stale worker's lease first, and the error went unhandled with no resolution recorded.",
+  "rule": "Before retrying any lease-gated operation, always verify lease validity; if the lease is expired, reconcile and release the previous worker's ownership claim before acquiring a new lease or proceeding\u2014never blind-retry on a lease_expired condition."
 }
