@@ -76,26 +76,35 @@ enum CoreBridgeError: Error, Equatable {
 /// resident and holds no ledger handle.
 final class CoreBridge: @unchecked Sendable {
     let python: String
+    private let bundledCore: String?
 
-    init(python: String) {
+    init(python: String, bundledCore: String? = CoreBridge.bundledCorePath()) {
         self.python = python
+        self.bundledCore = bundledCore
+    }
+
+    private static func bundledCorePath() -> String? {
+        guard let path = Bundle.main.resourceURL?.appendingPathComponent("core").path,
+              FileManager.default.fileExists(atPath: path) else { return nil }
+        return path
     }
 
     /// Probe the candidate list once and return the first interpreter that
     /// imports taskrivet successfully.
     static func connect(candidates: [String] = PythonDiscovery.candidates()) -> Result<CoreBridge, CoreBridgeError> {
         for candidate in candidates {
-            if probe(python: candidate) {
+            if probe(python: candidate, bundledCore: bundledCorePath()) {
                 return .success(CoreBridge(python: candidate))
             }
         }
         return .failure(.noPython(tried: candidates))
     }
 
-    static func probe(python: String) -> Bool {
+    static func probe(python: String, bundledCore: String? = bundledCorePath()) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: python)
         process.arguments = ["-c", "import taskrivet"]
+        process.environment = environment(with: bundledCore)
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         do {
@@ -115,12 +124,22 @@ final class CoreBridge: @unchecked Sendable {
         return process.terminationStatus == 0
     }
 
+    private static func environment(with bundledCore: String?) -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        if let bundledCore, !bundledCore.isEmpty {
+            let prior = env["PYTHONPATH"]
+            env["PYTHONPATH"] = prior.map { bundledCore + ":" + $0 } ?? bundledCore
+        }
+        return env
+    }
+
     /// Synchronous JSON call with a timeout. Callers invoke from a background
     /// queue; the result is the parsed stdout or a typed error.
     func call<T: Decodable>(_ type: T.Type, _ args: [String], timeout: TimeInterval = 30) -> Result<T, CoreBridgeError> {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: python)
         process.arguments = ["-m", "taskrivet", "--format", "json"] + args
+        process.environment = Self.environment(with: bundledCore)
         let stdout = Pipe()
         let stderr = Pipe()
         process.standardOutput = stdout
