@@ -221,6 +221,32 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn('unknown task', json.loads(result.stderr)['error'])
 
+    def test_pause_and_resume_a_running_session(self):
+        sid = self.start()
+        paused = self.l.pause('a', sid, 'operator hold')
+        self.assertEqual(paused['status'], 'paused')
+        self.assertEqual(self.l.task('a')['status'], 'paused')
+        with self.assertRaises(Conflict):
+            self.l.checkpoint(sid, 'progress', 'diff:1', 'review', 10)
+        resumed = self.l.resume('a', sid)
+        self.assertEqual(resumed['status'], 'running')
+        self.assertEqual(self.l.task('a')['status'], 'running')
+
+    def test_pause_requires_running_task_and_session(self):
+        with self.assertRaises(Conflict):
+            self.l.pause('a', 'not-a-session', 'hold')
+        sid = self.start()
+        self.l.pause('a', sid, 'operator hold')
+        with self.assertRaises(Conflict):
+            self.l.pause('a', sid, 'hold-again')
+
+    def test_resume_requires_paused_task_and_session(self):
+        sid = self.start()
+        self.l.pause('a', sid, 'operator hold')
+        self.l.resume('a', sid)
+        with self.assertRaises(Conflict):
+            self.l.resume('a', sid)
+
 
 if __name__ == '__main__':
     unittest.main()

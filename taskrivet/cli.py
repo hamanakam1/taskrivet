@@ -52,6 +52,8 @@ def parser():
     f = add('finish'); f.add_argument('session'); f.add_argument('--evidence', required=True)
     for name in ['accept', 'retry', 'cancel']:
         d = add(name); d.add_argument('task'); d.add_argument('--reason', required=True)
+    pp = add('pause'); pp.add_argument('task'); pp.add_argument('session'); pp.add_argument('--reason', required=True)
+    rr = add('resume'); rr.add_argument('task'); rr.add_argument('session'); rr.add_argument('--lease', type=int, default=900)
     c = add('context-add'); c.add_argument('task'); c.add_argument('--file', required=True)
     c.add_argument('--source', required=True); c.add_argument('--priority', type=int, default=0); c.add_argument('--ttl', type=int)
     c = add('pack'); c.add_argument('task'); c.add_argument('--max-bytes', type=int, default=12000)
@@ -292,6 +294,8 @@ def main(argv=None):
         elif cmd == 'fail': result = ledger.fail(a.session, a.category, a.summary)
         elif cmd == 'finish': result = ledger.finish(a.session, a.evidence)
         elif cmd in ('accept','retry','cancel'): result = ledger.decide(a.task, cmd, a.reason)
+        elif cmd == 'pause': result = ledger.pause(a.task, a.session, a.reason)
+        elif cmd == 'resume': result = ledger.resume(a.task, a.session, a.lease)
         elif cmd == 'context-add': result = ledger.add_context(a.task, Path(a.file).read_text(), a.source, a.priority, a.ttl)
         elif cmd == 'pack':
             result = ledger.pack(a.task, a.max_bytes)

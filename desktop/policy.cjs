@@ -56,6 +56,12 @@ function ledgerArgs(action, data = {}) {
     case 'fail': return ['fail', t('session'), '--category', t('category', 128), '--summary', t('summary')];
     case 'finish': return ['finish', t('session'), '--evidence', t('evidence')];
     case 'accept': case 'retry': case 'cancel': return [action, t('task'), '--reason', t('reason')];
+    case 'pause': return ['pause', t('task'), t('session'), '--reason', t('reason')];
+    case 'resume': {
+      const lease = Number(data.lease);
+      if (!Number.isInteger(lease) || lease < 60) throw new Error('Invalid lease');
+      return ['resume', t('task'), t('session'), '--lease', String(lease)];
+    }
     default: throw new Error('Unsupported ledger operation');
   }
 }

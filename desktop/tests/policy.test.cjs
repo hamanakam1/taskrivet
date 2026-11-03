@@ -44,3 +44,10 @@ test('a shared pane may only join a live session of its own task',()=>{
  assert.throws(()=>sharedSession(null,'abc123'));
  assert.throws(()=>sharedSession(live,'\0'));
 });
+
+test('the pause and resume human controls are bounded arguments',()=>{
+ assert.deepEqual(ledgerArgs('pause',{task:'search',session:'abc123',reason:'operator hold'}),['pause','search','abc123','--reason','operator hold']);
+ assert.throws(()=>ledgerArgs('pause',{task:'search',session:'abc123',reason:''}));
+ assert.deepEqual(ledgerArgs('resume',{task:'search',session:'abc123',lease:900}),['resume','search','abc123','--lease','900']);
+ assert.throws(()=>ledgerArgs('resume',{task:'search',session:'abc123',lease:30}));
+});

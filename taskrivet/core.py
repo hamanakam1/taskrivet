@@ -215,7 +215,7 @@ class Ledger:
                 raise Conflict("task token budget exhausted across attempts")
             scopes = set(json.loads(task["scope"]))
             for row in self.db.execute(
-                "SELECT id,scope FROM tasks WHERE status IN ('running','blocked','review')"
+                "SELECT id,scope FROM tasks WHERE status IN ('running','paused','blocked','review')"
             ):
                 if scopes.intersection(json.loads(row["scope"])):
                     raise Conflict(f"resource scope reserved by {row['id']}")
@@ -316,13 +316,50 @@ class Ledger:
         self.reconcile()
         with self.transaction():
             task = self.task(task_id)
-            allowed = {"accept": {"review"}, "retry": {"blocked", "review"}, "cancel": {"ready", "blocked", "review"}}
+            allowed = {
+                "accept": {"review"},
+                "retry": {"blocked", "review", "paused"},
+                "cancel": {"ready", "blocked", "review", "paused"},
+            }
             if task["status"] not in allowed[decision]:
                 raise Conflict(f"cannot {decision} a {task['status']} task")
             status = {"accept": "accepted", "retry": "ready", "cancel": "cancelled"}[decision]
             self.db.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
             self.event("operator." + decision, task_id, reason=reason)
         return {"status": status}
+
+    def pause(self, task_id: str, session_id: str, reason: str) -> dict[str, Any]:
+        required(reason, "reason")
+        self.reconcile()
+        with self.transaction():
+            task = self.task(task_id)
+            if task["status"] != "running":
+                raise Conflict(f"task is {task['status']}; expected running")
+            session = self.db.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if session is None or session["task_id"] != task_id:
+                raise ValueError("unknown session for task")
+            if session["status"] != "active":
+                raise Conflict(f"session is {session['status']}; expected active")
+            self.db.execute("UPDATE sessions SET status='paused' WHERE id=?", (session_id,))
+            self.db.execute("UPDATE tasks SET status='paused' WHERE id=?", (task_id,))
+            self.event("operator.pause", task_id, session=session_id, reason=reason)
+        return {"task_id": task_id, "session_id": session_id, "status": "paused", "reason": reason}
+
+    def resume(self, task_id: str, session_id: str, lease_seconds: int = 900) -> dict[str, Any]:
+        positive(lease_seconds, "lease_seconds")
+        self.reconcile()
+        with self.transaction():
+            task = self.task(task_id)
+            if task["status"] != "paused":
+                raise Conflict(f"task is {task['status']}; expected paused")
+            session = self.db.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if session is None or session["task_id"] != task_id or session["status"] != "paused":
+                raise Conflict("session is not paused")
+            lease_until = time.time() + lease_seconds
+            self.db.execute("UPDATE sessions SET status='active', lease_until=? WHERE id=?", (lease_until, session_id))
+            self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
+            self.event("operator.resume", task_id, session=session_id, lease_until=lease_until)
+        return {"task_id": task_id, "session_id": session_id, "status": "running", "lease_until": lease_until}
 
     def add_context(
         self,
@@ -528,7 +565,7 @@ class Ledger:
         ]
         claims = []
         for row in self.db.execute(
-            "SELECT id,status,scope FROM tasks WHERE status IN ('running','blocked','review') AND id!=?",
+            "SELECT id,status,scope FROM tasks WHERE status IN ('running','paused','blocked','review') AND id!=?",
             (task_id,),
         ):
             shared = sorted(set(json.loads(row["scope"])).intersection(scope))
