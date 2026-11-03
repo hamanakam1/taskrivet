@@ -87,8 +87,10 @@ function renderInspector(){
   fail.disabled=!session||session.status!=='active';
   finish.disabled=!session||session.status!=='active'||(p&&p.state==='running');
   accept.disabled=!t||t.status!=='review';
-  retry.disabled=!t||!['blocked','review'].includes(t.status);
+  retry.disabled=!t||!['blocked','review','paused'].includes(t.status);
   pack.disabled=!t;
+  $('pause').disabled=!session||session.status!=='active';
+  $('resume').disabled=!session||session.status!=='paused';
   share.disabled=!(detail&&detail.ticket_context&&detail.ticket_context.schema==='taskrivet.ticket-context.v1');
   const hasSession=!!session;
   showBlock('insp-session-block',hasSession||!!p);
@@ -491,6 +493,8 @@ const commands=[
   {label:'Submit for review',run:()=>$('finish').click()},
   {label:'Accept result',run:()=>$('accept').click()},
   {label:'Retry after reconciliation',run:()=>$('retry').click()},
+  {label:'Pause the session',run:()=>$('pause').click()},
+  {label:'Resume the session',run:()=>$('resume').click()},
   {label:'Inspect context packet',run:()=>$('pack').click()},
   {label:'Refresh the local ledger',run:()=>refresh()},
   {label:'Show the failure ledger',run:()=>showView('failures')},
@@ -708,15 +712,15 @@ $('opencode-form').onsubmit=safe(async e=>{e.preventDefault();const batch=openco
   for(const s of batch){try{await openOpenCodeSession(s);opened++;}catch(err){failed++;error(err);}}
   $('opencode-status').textContent=`${opened} session${opened===1?'':'s'} opened in their own tab${failed?` · ${failed} failed`:''} · ${new Date().toLocaleTimeString()}`;
   renderOpenCode();});
-const definitions={checkpoint:['Record checkpoint',['summary','evidence','next','tokens']],fail:['Record failure',['category','summary']],finish:['Submit for review',['evidence']],accept:['Accept result',['reason']],retry:['Retry after reconciliation',['reason']]};
+const definitions={checkpoint:['Record checkpoint',['summary','evidence','next','tokens']],fail:['Record failure',['category','summary']],finish:['Submit for review',['evidence']],accept:['Accept result',['reason']],retry:['Retry after reconciliation',['reason']],pause:['Pause the session',['reason']],resume:['Resume the session',['lease']]};
 for(const name of Object.keys(definitions))$(name).onclick=()=>{
   const pane=currentPane();
   action={name,task:activeTaskId(),session:pane&&pane.session};
   const [title,fields]=definitions[name];$('action-title').textContent=title;$('action-fields').replaceChildren();
-  for(const field of fields){const label=node('label',{summary:'What changed',evidence:'Evidence or artifact reference',next:'Next step',tokens:'Cumulative session tokens (reported)',category:'Failure category',reason:'Reason and reconciliation evidence'}[field]);const input=node(['summary','evidence','next','reason'].includes(field)?'textarea':'input');input.name=field;input.required=true;if(field==='tokens'){input.type='number';input.min='0';input.value=state.sessions.find(s=>s.id===action.session)?.tokens??0;}label.append(input);$('action-fields').append(label);}
+  for(const field of fields){const labels={summary:'What changed',evidence:'Evidence or artifact reference',next:'Next step',tokens:'Cumulative session tokens (reported)',category:'Failure category',reason:'Reason and reconciliation evidence',lease:'Lease seconds before the resumed session may expire'};const label=node('label',labels[field]);const input=node(['summary','evidence','next','reason'].includes(field)?'textarea':'input');input.name=field;input.required=true;if(field==='tokens'){input.type='number';input.min='0';input.value=state.sessions.find(s=>s.id===action.session)?.tokens??0;}if(field==='lease'){input.type='number';input.min='60';input.value=900;}label.append(input);$('action-fields').append(label);}
   $('action-dialog').showModal();
 };
-$('action-form').onsubmit=safe(async e=>{e.preventDefault();const data={...Object.fromEntries(new FormData(e.target)),task:action.task,session:action.session};if('tokens'in data)data.tokens=Number(data.tokens);await api.ledger(action.name,data);$('action-dialog').close();await refresh();});
+$('action-form').onsubmit=safe(async e=>{e.preventDefault();const data={...Object.fromEntries(new FormData(e.target)),task:action.task,session:action.session};if('tokens'in data)data.tokens=Number(data.tokens);if('lease'in data)data.lease=Number(data.lease);await api.ledger(action.name,data);$('action-dialog').close();await refresh();});
 $('pack').onclick=safe(async()=>{const result=await api.ledger('pack',{task:activeTaskId()});$('packet').textContent=JSON.stringify(result,null,2);$('packet-dialog').showModal();});
 for(const b of document.querySelectorAll('[data-close]'))b.onclick=()=>b.closest('dialog').close();
 (async()=>{try{const initial=await api.bootstrap();home=initial.home;$('app-version').textContent=`VERSION ${initial.version||'UNKNOWN'}`;$('github-repo').value=initial.githubRepo||'';for(const t of initial.terminals)addTerminal(t);await refresh();}catch(e){$('app-version').textContent='VERSION UNKNOWN';error(e);}})();

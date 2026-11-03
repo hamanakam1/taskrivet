@@ -46,6 +46,9 @@
 - Added split panes, tab renaming, find in the focused pane's scrollback, and a
   command palette to the desktop terminal card. A split of a task-linked pane
   joins the existing ledger session instead of claiming a new lease.
+- Added pause and resume human controls. `taskrivet pause` and `taskrivet resume`
+  move a task and its session between running and paused, gate checkpoints on the
+  active state, and hand out a fresh lease on resume.
 - Added workspace screenshots captured from the real renderer against a
   synthetic bridge, with the capture script kept in `desktop/scripts`.
 - Added an OpenCode session drawer to the desktop terminal card. Local OpenCode

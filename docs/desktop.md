@@ -45,6 +45,18 @@ A shell exit does not finish or accept a task. Stop the linked terminal before
 submitting its result for review, accepting, or retrying. Checkpoints and failure
 records are explicit operator entries, not automated evidence verification.
 
+## Human controls: pause and resume
+
+Pause and resume are ledger operations, not UI gestures. `taskrivet pause
+<task> <session> --reason <note>` requires a running task and an active session,
+moves the task and session to a paused state, and stops further checkpoint
+acceptance. Resume takes a paused task and session back to running with a fresh
+lease (`--lease`, default 900 seconds); the lease is renewed again by any later
+checkpoint.
+
+The desktop inspector and command palette expose both through the same explicit
+ledger bridge, so no control bypasses the argument allowlist or the ledger.
+
 ## Privacy and UI boundary
 
 All frontend assets are local. The renderer uses sandboxing, context isolation,

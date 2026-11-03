@@ -82,6 +82,12 @@ down, tabs rename, find searches the focused pane's scrollback including text
 that wrapped, a command palette exposes every action from the keyboard, and the
 shell reports its own folder when it supports OSC 7.
 
+The human controls are first class ledger operations, not vibes: `taskrivet
+pause <task> <session> --reason <note>` freezes a running session and moves the
+task to a paused state, checkpoints stop being accepted, and the lease stops
+running; `taskrivet resume <task> <session> [--lease N]` reopens the session
+with a fresh lease and returns the task to running.
+
 ![Find in the scrollback](docs/screenshots/workspace-find-in-scrollback.png)
 
 ![Command palette](docs/screenshots/workspace-command-palette.png)
