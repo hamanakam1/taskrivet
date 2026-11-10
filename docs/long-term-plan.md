@@ -1,7 +1,9 @@
 # Taskrivet — long-term plan
 
-**Status:** living document · owner: Michael Hamanaka · last reviewed: 2026-10-22
+**Status:** living document · owner: Michael Hamanaka · last reviewed: 2026-11-10
 **Applies to:** the `taskrivet` package, the Taskrivet desktop app, and the public repository.
+**Current code:** 0.5.0 preview (`66061d8`); the plan's §2 inventory is reconciled
+below against that commit.
 
 This plan describes how Taskrivet should be built over the next several
 releases, what each release must prove before the next one starts, and which
@@ -76,23 +78,52 @@ Verified against the current tree, not the roadmap text.
   terminals, task-linked tabs, split panes, a command palette, find across
   the focused pane's scrollback, a task inspector, a failure ledger, and a
   detached session service that owns PTYs and survives a window or app quit.
+  A native SwiftUI Mac workspace now ships alongside it (`macos/`).
 - A `taskrivet detail` read (`taskrivet/core.py`) that returns the session,
   the task, resource claims on the same scope keys, the bounded context
   packet, every checkpoint with its evidence, recorded failures, and the
   ledger event trail in one record.
+- A supervised ticket loop (`taskrivet/execution.py`, `taskrivet/cli.py`):
+  one operator-chosen ticket from a configured local ticket service, bounded
+  list and detail reads with holds acknowledged before launch, import as a
+  local task (schema v2: `task_sources`, `handbacks`), a `work` command that
+  opens the chosen agent in a terminal of the per-ledger session service with
+  a bounded context file, and a `handback` command that posts a report only
+  after explicit confirmation, through the operator's own adapter, with
+  readback and a stable marker against duplicates. Holds are acknowledged,
+  not cleared; nothing changes a ticket's stage, tags, or holds.
+- Pause and resume controls on the ledger and in the desktop inspector
+  (`taskrivet/cli.py`, `desktop/ui/app.js`).
+- Ticket-aware context integration (`taskrivet/tickets.py`, `taskrivet/config.py`):
+  bounded reads from an explicitly configured local ticket service, with
+  source revisions and explicit admission. No autonomous dispatch.
+- Read-only routing observations (`taskrivet/routing.py`): inventory and
+  engine connections, with the missing entitlement evidence reported. These
+  are observations, not measured routing, and they are never treated as
+  authorization.
 - A public-content privacy guard (`scripts/public_content_guard.py`) that
   inspects Git objects as data and blocks blocklisted content from public
   branches.
 
 **Not implemented, and must not be implied**
 
-- Automatic ticket execution, automatic acceptance, and autonomous dispatch.
+- Fully autonomous ticket execution, automatic acceptance, and autonomous
+  dispatch. A supervised ticket loop exists — one operator-chosen ticket, with
+  holds acknowledged before launch — but it is supervised, not autonomous.
 - Verified billing, quota, or entitlement checks. Cost is operator-declared.
 - Per-issue lifecycle mirroring and universal activity coverage.
 - Process isolation or sandboxing. Terminals run as the operator.
-- Service-failure and reboot recovery for terminals.
-- Any measured savings, throughput, or quality advantage.
-- Signed or notarised desktop distribution.
+- Service-failure and reboot recovery for terminals. A shared session
+  service preserves PTYs across desktop restarts, but a service crash or
+  reboot still loses them.
+- Any measured savings, throughput, or quality advantage. Routing is
+  observation-based; the measured-routing phase has not started.
+- Signed or notarised desktop distribution. The native SwiftUI workspace
+  (`macos/`) is a second, unsigned, local build.
+- Lease fencing. A split pane joins the existing ledger session rather than
+  claiming a new one, which is the right behaviour for a second view of one
+  attempt — and it is also a reminder that nothing fences the attempt
+  itself. Nothing in the supervised ticket loop relies on a fence yet.
 - A lease that fences a stale worker. A split pane joins the existing ledger
   session rather than claiming a new one, which is the right behaviour for a
   second view of one attempt — and it is also a reminder that nothing fences
@@ -436,6 +467,7 @@ document is without reading the whole repository.
 |------|--------------------|------------|
 | 2026-10-22 | `20b6702` | Plan written against v0.3. Phase 0 opened with nothing closed. |
 | 2026-10-22 | `684c55a` | The desktop gained split panes, a command palette, find across the focused pane's scrollback, and a session inspector; `taskrivet detail` returns the session, task, scope claims, context packet, checkpoints, failures, and the event trail in one record. The ledger schema is unchanged, so **no Phase 0 item is closed** — the structural gap below is exactly where it was. |
+| 2026-11-10 | `ffd978d` | The supervised ticket loop, shared session service, pause/resume controls, ticket-aware context integration, native SwiftUI workspace, and an opencode integration landed. The schema is still v2 (`task_sources`, `handbacks` on top of the original tables), so **no Phase 0 item is closed** — the structural gap is exactly where it was, and the ticket loop now works without the fence it is supposed to depend on. The "not implemented" list distinguishes what the supervised loop does from what remains autonomous. |
 
 The rule above says the plan moves in the same commit as the change. That did
 not happen for the second row: the desktop work landed in another commit, and
