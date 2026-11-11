@@ -26,6 +26,46 @@ class LedgerTest(unittest.TestCase):
     def cp(self, sid, tokens=10, evidence='diff:1'):
         return self.l.checkpoint(sid, 'progress', evidence, 'review', tokens)
 
+    def test_lease_token_monotonic_across_resume(self):
+        first = self.l.start('a', 'worker')
+        self.assertEqual(first['lease_token'], 'a-1')
+        sid = first['session_id']
+        self.l.pause('a', sid, 'operator hold')
+        second = self.l.resume('a', sid)
+        self.assertEqual(second['lease_token'], 'a-2')
+        self.l.pause('a', sid, 'still holding')
+        third = self.l.resume('a', sid)
+        self.assertEqual(third['lease_token'], 'a-3')
+
+    def test_stale_lease_token_rejected_after_resume(self):
+        started = self.l.start('a', 'worker')
+        sid = started['session_id']
+        token = started['lease_token']
+        self.l.pause('a', sid, 'operator hold')
+        resumed = self.l.resume('a', sid)
+        self.assertEqual(self.l.checkpoint(sid, 'progress', 'diff:1', 'review', 10, lease_token=resumed['lease_token'])['status'], 'active')
+        with self.assertRaises(Conflict): self.l.checkpoint(sid, 'progress', 'diff:2', 'review', 20, lease_token=token)
+        with self.assertRaises(Conflict): self.l.fail(sid, 'tool', 'Stopped', lease_token=token)
+        with self.assertRaises(Conflict): self.l.finish(sid, 'done', lease_token=token)
+
+    def test_attempts_record_outcome_and_expose_in_detail(self):
+        started = self.l.start('a', 'worker')
+        attempt_id = started['attempt_id']
+        sid = started['session_id']
+        self.assertEqual(self.l.detail('a')['attempts'][0]['id'], attempt_id)
+        self.assertEqual(self.l.detail('a')['attempts'][0]['outcome'], 'running')
+        self.l.checkpoint(sid, 'progress', 'diff:1', 'review', 10)
+        self.l.fail(sid, 'tool', 'Missing compiler', lease_token=started['lease_token'])
+        self.assertEqual(self.l.detail('a')['attempts'][0]['outcome'], 'failed')
+        self.l.decide('a', 'retry', 'Compiler available')
+        self.assertEqual(self.l.detail('a')['attempts'][0]['outcome'], 'retry')
+        second = self.l.start('a', 'worker')
+        self.assertNotEqual(second['attempt_id'], attempt_id)
+        self.l.checkpoint(second['session_id'], 'progress', 'diff:3', 'review', 5, lease_token=second['lease_token'])
+        self.l.finish(second['session_id'], 'tests pass', lease_token=second['lease_token'])
+        self.l.decide('a', 'accept', 'Reviewed')
+        self.assertEqual(self.l.detail('a')['attempts'][1]['outcome'], 'accepted')
+
     def test_accept_requires_finished_session(self):
         with self.assertRaises(Conflict): self.l.decide('a', 'accept', 'looks fine')
         sid = self.start()

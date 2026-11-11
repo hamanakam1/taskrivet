@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -52,7 +52,7 @@ class Ledger:
             id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
             owner TEXT NOT NULL, status TEXT NOT NULL, lease_until REAL NOT NULL,
             tokens INTEGER NOT NULL DEFAULT 0, progress TEXT NOT NULL DEFAULT '',
-            stagnant INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL);
+            stagnant INTEGER NOT NULL DEFAULT 0, lease_token TEXT NOT NULL DEFAULT '', token_seq INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL);
         CREATE UNIQUE INDEX IF NOT EXISTS one_active ON sessions(task_id)
             WHERE status='active';
         CREATE TABLE IF NOT EXISTS checkpoints (
@@ -98,8 +98,27 @@ class Ledger:
                 created REAL NOT NULL, updated REAL NOT NULL, delivered REAL);
             CREATE INDEX IF NOT EXISTS handbacks_task ON handbacks(task_id, created);
             PRAGMA user_version=2;
+            CREATE TABLE IF NOT EXISTS attempts (
+                id TEXT PRIMARY KEY,
+                task_id TEXT NOT NULL REFERENCES tasks(id),
+                session_id TEXT REFERENCES sessions(id),
+                tool_profile TEXT NOT NULL,
+                environment_fingerprint TEXT NOT NULL,
+                started REAL NOT NULL,
+                ended REAL,
+                outcome TEXT NOT NULL DEFAULT 'running',
+                receipt_references TEXT NOT NULL DEFAULT '[]',
+                tokens INTEGER NOT NULL DEFAULT 0,
+                created REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS attempts_task ON attempts(task_id, started);
             COMMIT;
             """)
+            existing = {row[1] for row in self.db.execute("PRAGMA table_info(sessions)").fetchall()}
+            if "lease_token" not in existing:
+                self.db.execute("ALTER TABLE sessions ADD COLUMN lease_token TEXT NOT NULL DEFAULT ''")
+            if "token_seq" not in existing:
+                self.db.execute("ALTER TABLE sessions ADD COLUMN token_seq INTEGER NOT NULL DEFAULT 0")
+            self.db.execute("PRAGMA user_version=3")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -220,19 +239,32 @@ class Ledger:
                 if scopes.intersection(json.loads(row["scope"])):
                     raise Conflict(f"resource scope reserved by {row['id']}")
             sid = uuid.uuid4().hex
+            seq_row = self.db.execute(
+                "SELECT COALESCE(MAX(token_seq),0) AS m FROM sessions WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            token_seq = int(seq_row["m"]) + 1
+            lease_token = f"{task_id}-{token_seq}"
+            attempt_id = uuid.uuid4().hex
             now = time.time()
             self.db.execute(
-                "INSERT INTO sessions(id,task_id,owner,status,lease_until,created) VALUES (?,?,?,'active',?,?)",
-                (sid, task_id, owner, now + lease_seconds, now)
+                "INSERT INTO sessions(id,task_id,owner,status,lease_until,lease_token,token_seq,created) VALUES (?,?,?,?,?,?,?,?)",
+                (sid, task_id, owner, "active", now + lease_seconds, lease_token, token_seq, now)
+            )
+            self.db.execute(
+                "INSERT INTO attempts(id,task_id,session_id,tool_profile,environment_fingerprint,started,outcome,receipt_references,tokens,created) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (attempt_id, task_id, sid, "unassigned", hashlib.sha256(task_id.encode()).hexdigest()[:16], now, "running", "[]", 0, now)
             )
             self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
-            self.event("session.started", task_id, session=sid, owner=owner)
-        return {"session_id": sid, "task_id": task_id, "lease_until": now + lease_seconds}
+            self.event("session.started", task_id, session=sid, owner=owner, lease_token=lease_token, attempt_id=attempt_id)
+        return {"session_id": sid, "task_id": task_id, "lease_until": now + lease_seconds, "lease_token": lease_token, "attempt_id": attempt_id}
 
-    def _session(self, sid: str) -> dict[str, Any]:
+    def _session(self, sid: str, lease_token: str | None = None) -> dict[str, Any]:
         row = self.db.execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
         if row is None:
             raise ValueError("unknown session")
+        if lease_token is not None and row["lease_token"] != lease_token:
+            raise Conflict("stale lease token; the session was re-leased")
         if row["status"] != "active" or row["lease_until"] <= time.time():
             raise Conflict("session is inactive or expired")
         return dict(row)
@@ -245,6 +277,7 @@ class Ledger:
         next_step: str,
         tokens: int,
         lease_seconds: int = 900,
+        lease_token: str | None = None,
     ) -> dict[str, Any]:
         for value, name in [
             (summary, "summary"),
@@ -257,7 +290,7 @@ class Ledger:
         positive(lease_seconds, "lease_seconds")
         self.reconcile()
         with self.transaction():
-            session = self._session(sid)
+            session = self._session(sid, lease_token)
             if tokens < session["tokens"]:
                 raise Conflict("cumulative token count cannot decrease")
             fingerprint = hashlib.sha256(evidence.encode()).hexdigest()
@@ -272,6 +305,7 @@ class Ledger:
                 "UPDATE sessions SET tokens=?,progress=?,stagnant=?,lease_until=?,status=? WHERE id=?",
                 (tokens, fingerprint, stagnant, time.time() + lease_seconds, "blocked" if blocked else "active", sid)
             )
+            self.db.execute("UPDATE attempts SET tokens=?,outcome=? WHERE session_id=?", (tokens, "blocked" if blocked else "running", sid))
             self.db.execute(
                 "INSERT INTO checkpoints(session_id,summary,evidence,next_step,tokens,created) VALUES (?,?,?,?,?,?)",
                 (sid, summary, evidence, next_step, tokens, time.time())
@@ -286,26 +320,28 @@ class Ledger:
                 )
         return {"session_id": sid, "status": "blocked" if blocked else "active", "tokens": tokens}
 
-    def fail(self, sid: str, category: str, summary: str) -> dict[str, str]:
+    def fail(self, sid: str, category: str, summary: str, lease_token: str | None = None) -> dict[str, str]:
         required(category, "category")
         required(summary, "summary")
         self.reconcile()
         with self.transaction():
-            session = self._session(sid)
+            session = self._session(sid, lease_token)
             self.db.execute("UPDATE sessions SET status='failed' WHERE id=?", (sid,))
             self.db.execute("UPDATE tasks SET status='blocked' WHERE id=?", (session["task_id"],))
             self._failure(session["task_id"], sid, category, summary)
+            self.db.execute("UPDATE attempts SET outcome='failed' WHERE session_id=?", (sid,))
         return {"status": "blocked"}
 
-    def finish(self, sid: str, evidence: str) -> dict[str, str]:
+    def finish(self, sid: str, evidence: str, lease_token: str | None = None) -> dict[str, str]:
         required(evidence, "evidence")
         self.reconcile()
         with self.transaction():
-            session = self._session(sid)
+            session = self._session(sid, lease_token)
             if not self.db.execute("SELECT 1 FROM checkpoints WHERE session_id=?", (sid,)).fetchone():
                 raise Conflict("record a checkpoint with usage and evidence before finishing")
             self.db.execute("UPDATE sessions SET status='finished' WHERE id=?", (sid,))
             self.db.execute("UPDATE tasks SET status='review' WHERE id=?", (session["task_id"],))
+            self.db.execute("UPDATE attempts SET outcome='review' WHERE session_id=?", (sid,))
             self.event("session.finished", session["task_id"], session=sid, evidence=evidence)
         return {"status": "review"}
 
@@ -316,13 +352,62 @@ class Ledger:
         self.reconcile()
         with self.transaction():
             task = self.task(task_id)
-            allowed = {"accept": {"review"}, "retry": {"blocked", "review"}, "cancel": {"ready", "blocked", "review"}}
+            allowed = {
+                "accept": {"review"},
+                "retry": {"blocked", "review", "paused"},
+                "cancel": {"ready", "blocked", "review", "paused"},
+            }
             if task["status"] not in allowed[decision]:
                 raise Conflict(f"cannot {decision} a {task['status']} task")
             status = {"accept": "accepted", "retry": "ready", "cancel": "cancelled"}[decision]
             self.db.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
+            if decision == "accept": self.db.execute("UPDATE attempts SET outcome='accepted' WHERE task_id=? AND outcome='review'", (task_id,))
+            if decision == "cancel": self.db.execute("UPDATE attempts SET outcome='cancelled' WHERE task_id=? AND outcome IN ('blocked','review','paused')", (task_id,))
+            if decision == "retry": self.db.execute("UPDATE attempts SET outcome='retry' WHERE task_id=? AND outcome IN ('failed','blocked','review','paused')", (task_id,))
             self.event("operator." + decision, task_id, reason=reason)
         return {"status": status}
+
+    def pause(self, task_id: str, session_id: str, reason: str) -> dict[str, Any]:
+        required(reason, "reason")
+        self.reconcile()
+        with self.transaction():
+            task = self.task(task_id)
+            if task["status"] != "running":
+                raise Conflict(f"task is {task['status']}; expected running")
+            session = self.db.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if session is None or session["task_id"] != task_id:
+                raise ValueError("unknown session for task")
+            if session["status"] != "active":
+                raise Conflict(f"session is {session['status']}; expected active")
+            self.db.execute("UPDATE sessions SET status='paused' WHERE id=?", (session_id,))
+            self.db.execute("UPDATE tasks SET status='paused' WHERE id=?", (task_id,))
+            self.event("operator.pause", task_id, session=session_id, reason=reason)
+        return {"task_id": task_id, "session_id": session_id, "status": "paused", "reason": reason}
+
+    def resume(self, task_id: str, session_id: str, lease_seconds: int = 900) -> dict[str, Any]:
+        positive(lease_seconds, "lease_seconds")
+        self.reconcile()
+        with self.transaction():
+            task = self.task(task_id)
+            if task["status"] != "paused":
+                raise Conflict(f"task is {task['status']}; expected paused")
+            session = self.db.execute("SELECT * FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if session is None or session["task_id"] != task_id or session["status"] != "paused":
+                raise Conflict("session is not paused")
+            lease_until = time.time() + lease_seconds
+            seq_row = self.db.execute(
+                "SELECT COALESCE(MAX(token_seq),0) AS m FROM sessions WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            token_seq = int(seq_row["m"]) + 1
+            lease_token = f"{task_id}-{token_seq}"
+            self.db.execute(
+                "UPDATE sessions SET status='active', lease_until=?, lease_token=?, token_seq=? WHERE id=?",
+                (lease_until, lease_token, token_seq, session_id),
+            )
+            self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
+            self.event("operator.resume", task_id, session=session_id, lease_until=lease_until)
+        return {"task_id": task_id, "session_id": session_id, "status": "running", "lease_until": lease_until, "lease_token": lease_token}
 
     def add_context(
         self,
@@ -533,6 +618,10 @@ class Ledger:
             shared = sorted(set(json.loads(row["scope"])).intersection(scope))
             if shared:
                 claims.append({"task": row["id"], "status": row["status"], "shared_keys": shared})
+        attempts = [
+            dict(r)
+            for r in self.db.execute("SELECT * FROM attempts WHERE task_id=? ORDER BY started", (task_id,))
+        ]
         reported = sum(s["tokens"] for s in sessions)
         try:
             packed = self.pack(task_id)
@@ -564,6 +653,7 @@ class Ledger:
             "failures": failures,
             "events": events,
             "claims": claims,
+            "attempts": attempts,
             "pack": pack_view,
             "provenance": (
                 "Ledger records only. Reported usage, evidence, and context source labels are "
