@@ -66,6 +66,23 @@ class LedgerTest(unittest.TestCase):
         self.l.decide('a', 'accept', 'Reviewed')
         self.assertEqual(self.l.detail('a')['attempts'][1]['outcome'], 'accepted')
 
+    def test_receipts_record_claim_and_evidence_idempotently(self):
+        started = self.l.start('a', 'worker')
+        attempt_id = started['attempt_id']
+        claim = self.l.receipt(attempt_id, 'a', 'claim', f"{attempt_id}:claim", status='claimed')
+        self.assertEqual(claim['action'], 'claim')
+        self.assertEqual(len(self.l.receipts(attempt_id)), 1)
+        self.assertEqual(self.l.receipt(attempt_id, 'a', 'claim', f"{attempt_id}:claim", status='claimed')['id'], claim['id'])
+        self.assertEqual(len(self.l.receipts(attempt_id)), 1)
+        sid = started['session_id']
+        self.l.checkpoint(sid, 'progress', 'diff:1', 'review', 10, lease_token=started['lease_token'])
+        self.l.finish(sid, 'tests pass', lease_token=started['lease_token'])
+        self.assertEqual([r['action'] for r in self.l.receipts(attempt_id)], ['claim', 'evidence'])
+        attempt = self.l.db.execute("SELECT * FROM attempts WHERE session_id=?", (sid,)).fetchone()
+        evidence = self.l.receipt(attempt['id'], 'a', 'evidence', f"{attempt['id']}:evidence")
+        self.assertEqual(evidence['action'], 'evidence')
+        self.assertEqual(len(self.l.receipts(attempt['id'])), 2)
+
     def test_accept_requires_finished_session(self):
         with self.assertRaises(Conflict): self.l.decide('a', 'accept', 'looks fine')
         sid = self.start()

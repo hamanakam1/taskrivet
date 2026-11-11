@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -111,6 +111,12 @@ class Ledger:
                 tokens INTEGER NOT NULL DEFAULT 0,
                 created REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS attempts_task ON attempts(task_id, started);
+            CREATE TABLE IF NOT EXISTS receipts (
+                id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, task_id TEXT NOT NULL REFERENCES tasks(id),
+                action TEXT NOT NULL, key TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'recorded',
+                detail TEXT, created REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS receipts_attempt ON receipts(attempt_id, created);
+            PRAGMA user_version=4;
             COMMIT;
             """)
             existing = {row[1] for row in self.db.execute("PRAGMA table_info(sessions)").fetchall()}
@@ -118,7 +124,7 @@ class Ledger:
                 self.db.execute("ALTER TABLE sessions ADD COLUMN lease_token TEXT NOT NULL DEFAULT ''")
             if "token_seq" not in existing:
                 self.db.execute("ALTER TABLE sessions ADD COLUMN token_seq INTEGER NOT NULL DEFAULT 0")
-            self.db.execute("PRAGMA user_version=3")
+            self.db.execute("PRAGMA user_version=4")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -256,6 +262,7 @@ class Ledger:
                 (attempt_id, task_id, sid, "unassigned", hashlib.sha256(task_id.encode()).hexdigest()[:16], now, "running", "[]", 0, now)
             )
             self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
+            self.receipt(attempt_id, task_id, "claim", f"{attempt_id}:claim", status="claimed")
             self.event("session.started", task_id, session=sid, owner=owner, lease_token=lease_token, attempt_id=attempt_id)
         return {"session_id": sid, "task_id": task_id, "lease_until": now + lease_seconds, "lease_token": lease_token, "attempt_id": attempt_id}
 
@@ -342,6 +349,9 @@ class Ledger:
             self.db.execute("UPDATE sessions SET status='finished' WHERE id=?", (sid,))
             self.db.execute("UPDATE tasks SET status='review' WHERE id=?", (session["task_id"],))
             self.db.execute("UPDATE attempts SET outcome='review' WHERE session_id=?", (sid,))
+            attempt = self.db.execute("SELECT * FROM attempts WHERE session_id=?", (sid,)).fetchone()
+            if attempt is not None:
+                self.receipt(attempt["id"], session["task_id"], "evidence", f"{attempt['id']}:evidence")
             self.event("session.finished", session["task_id"], session=sid, evidence=evidence)
         return {"status": "review"}
 
@@ -408,6 +418,25 @@ class Ledger:
             self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
             self.event("operator.resume", task_id, session=session_id, lease_until=lease_until)
         return {"task_id": task_id, "session_id": session_id, "status": "running", "lease_until": lease_until, "lease_token": lease_token}
+
+    def receipt(self, attempt_id: str, task_id: str, action: str, key: str, status: str = "recorded", detail: str | None = None) -> dict[str, Any]:
+        required(attempt_id, "attempt_id")
+        required(action, "receipt action")
+        required(key, "idempotency key")
+        row = self.db.execute("SELECT * FROM receipts WHERE key=?", (key,)).fetchone()
+        if row is None:
+            self.db.execute(
+                "INSERT INTO receipts(id,attempt_id,task_id,action,key,status,detail,created) VALUES (?,?,?,?,?,?,?,?)",
+                (key, attempt_id, task_id, action, key, status, detail, time.time()),
+            )
+            row = self.db.execute("SELECT * FROM receipts WHERE key=?", (key,)).fetchone()
+        return dict(row)
+
+    def receipts(self, attempt_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(r)
+            for r in self.db.execute("SELECT * FROM receipts WHERE attempt_id=? ORDER BY created", (attempt_id,))
+        ]
 
     def add_context(
         self,
