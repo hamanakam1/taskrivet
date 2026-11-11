@@ -82,6 +82,7 @@ class LedgerTest(unittest.TestCase):
         evidence = self.l.receipt(attempt['id'], 'a', 'evidence', f"{attempt['id']}:evidence")
         self.assertEqual(evidence['action'], 'evidence')
         self.assertEqual(len(self.l.receipts(attempt['id'])), 2)
+        self.assertTrue(self.l.detail('a')['receipts'])
 
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')

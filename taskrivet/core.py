@@ -663,6 +663,10 @@ class Ledger:
             dict(r)
             for r in self.db.execute("SELECT * FROM attempts WHERE task_id=? ORDER BY started", (task_id,))
         ]
+        receipts = [
+            dict(r)
+            for r in self.db.execute("SELECT * FROM receipts WHERE task_id=? ORDER BY created", (task_id,))
+        ]
         reported = sum(s["tokens"] for s in sessions)
         try:
             packed = self.pack(task_id)
@@ -695,6 +699,7 @@ class Ledger:
             "events": events,
             "claims": claims,
             "attempts": attempts,
+            "receipts": receipts,
             "pack": pack_view,
             "provenance": (
                 "Ledger records only. Reported usage, evidence, and context source labels are "

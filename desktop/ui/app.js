@@ -89,7 +89,9 @@ function renderInspector(){
   showBlock('insp-task-block',!!t);
   showBlock('insp-context-block',!!(detail&&detail.context.length));
   showBlock('insp-checkpoints-block',!!(detail&&detail.checkpoints.length));
+  showBlock('insp-attempts-block',!!(detail&&detail.attempts&&detail.attempts.length));
   showBlock('insp-failures-block',!!(detail&&detail.failures.length));
+  showBlock('insp-receipts-block',!!(detail&&detail.receipts&&detail.receipts.length));
   showBlock('insp-events-block',!!(detail&&detail.events.length));
   if(p||session){
     const rows=[
@@ -141,11 +143,23 @@ function renderInspector(){
       row.append(node('strong',c.summary),node('p',c.evidence),node('small',`next: ${c.next_step} · ${c.tokens.toLocaleString()} tokens · ${relativeAge((Date.now()/1000)-c.created)}`));
       checks.append(row);
     }
+    const attempts=$('insp-attempts');attempts.replaceChildren();
+    for(const a of detail.attempts||[]){
+      const row=node('div',undefined,'insp-row');
+      row.append(node('strong',`${a.id} · ${String(a.outcome).toUpperCase()}`),node('small',`attempt started ${relativeAge((Date.now()/1000)-a.started)} · ${(a.tokens||0).toLocaleString()} tokens · session ${String(a.session_id||'')}`));
+      attempts.append(row);
+    }
     const fails=$('insp-failures');fails.replaceChildren();
     for(const f of detail.failures){
       const row=node('div',undefined,'insp-row');
       row.append(node('strong',f.category),node('p',f.summary),node('small',`${f.occurrences} occurrence${f.occurrences===1?'':'s'} · ${String(f.fingerprint||'').slice(0,12)}`));
       fails.append(row);
+    }
+    const receipts=$('insp-receipts');receipts.replaceChildren();
+    for(const r of detail.receipts||[]){
+      const row=node('div',undefined,'insp-row');
+      row.append(node('strong',`${r.action} · ${String(r.status)}`),node('small',`receipt ${String(r.key||r.id||'').slice(0,12)} · attempt ${String(r.attempt_id||'')}`));
+      receipts.append(row);
     }
     const events=$('insp-events');events.replaceChildren();
     for(const e of detail.events.slice(0,12)){

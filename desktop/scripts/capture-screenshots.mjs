@@ -89,6 +89,13 @@ const DETAIL = {
     {seq: 3, type: 'session.started', created: 1792670100, data: {owner: 'desktop-terminal', session: SESSION.id}},
   ],
   claims: [{task: 'release-notes-0-4', status: 'blocked', shared_keys: ['taskrivet/desktop/search']}],
+  attempts: [
+    {id: 'att-1', task_id: TASK.id, session_id: SESSION.id, tool_profile: 'unassigned', environment_fingerprint: 'taskrivet-search-empty-state', started: 1792670100, ended: null, outcome: 'running', receipt_references: '[]', tokens: 4820, created: 1792670100},
+  ],
+  receipts: [
+    {id: 'att-1:claim', attempt_id: 'att-1', task_id: TASK.id, action: 'claim', key: 'att-1:claim', status: 'claimed', detail: null, created: 1792670100},
+    {id: 'att-1:evidence', attempt_id: 'att-1', task_id: TASK.id, action: 'evidence', key: 'att-1:evidence', status: 'recorded', detail: null, created: 1792671200},
+  ],
   pack: {bytes: 9214, items: 2, omitted: [{hash: 'c81f0a7e44', reason: 'byte_budget'}], error: null},
   provenance: 'Ledger records only.',
 };
@@ -257,6 +264,8 @@ async function main() {
   await check('the inspector shows the objective', () => document.getElementById('insp-task')?.textContent.includes('useful guidance'));
   await check('the inspector shows recorded usage as reported', () => document.getElementById('insp-task')?.textContent.includes('4,820 / 8,000'));
   await check('the inspector lists checkpoints', () => document.getElementById('insp-checkpoints')?.textContent.includes('Empty state renders with guidance'));
+  await check('the inspector lists attempts', () => document.getElementById('insp-attempts')?.textContent.includes('att-1'));
+  await check('the inspector lists receipts', () => document.getElementById('insp-receipts')?.textContent.includes('claim'));
   await check('the inspector lists failures', () => document.getElementById('insp-failures')?.textContent.includes('tool_error'));
   await check('the inspector lists ledger events', () => document.getElementById('insp-events')?.textContent.includes('session.checkpoint'));
   await check('the inspector shows bounded context', () => document.getElementById('insp-context')?.textContent.includes('9,214 bytes'));
