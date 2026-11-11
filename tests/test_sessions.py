@@ -6,11 +6,28 @@ from pathlib import Path
 import signal
 import time
 import unittest
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 from synthetic import cleanup, short_dir, stop_service, wait_for_exit
 from taskrivet.session_client import (
     RequestRefused, ServiceNotRunning, SessionClient, SessionError, attach, find_terminal, session_dir, summarize)
+from taskrivet.sessiond import Service
+
+
+class ReportingLedger:
+    """Minimal ledger stand-in used to observe service-reported attempt state."""
+
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def event(self, kind: str, task: str, **data: Any) -> None:
+        self.events.append({"type": kind, "task": task, **data})
+
+    @property
+    def db(self) -> Any:
+        return SimpleNamespace(execute=lambda *args, **kwargs: SimpleNamespace(fetchone=lambda: {"id": "att-9"}))
 
 
 class SessionServiceTests(unittest.TestCase):
@@ -153,6 +170,22 @@ class SessionServiceTests(unittest.TestCase):
                              Path.home() / ".taskrivet" / f"sessions-{digest}")
         with patch.dict(os.environ, {"TASKRIVET_SESSION_DIR": str(self.dir)}):
             self.assertEqual(session_dir("/anything"), self.dir)
+
+    def test_reported_terminal_exit_records_attempt_state_in_the_ledger(self):
+        ledger = ReportingLedger()
+        service = Service(self.dir, "token", ledger=ledger)
+        service._report(SimpleNamespace(task="taskrivet-1", session="sess-1", exit_code=3))
+        self.assertEqual(len(ledger.events), 1)
+        self.assertEqual(ledger.events[0]["type"], "session.exited")
+        self.assertEqual(ledger.events[0]["task"], "taskrivet-1")
+        self.assertEqual(ledger.events[0]["attempt_id"], "att-9")
+        self.assertEqual(ledger.events[0]["exit_code"], 3)
+
+    def test_reported_terminal_exit_without_task_context_is_not_recorded(self):
+        ledger = ReportingLedger()
+        service = Service(self.dir, "token", ledger=ledger)
+        service._report(SimpleNamespace(task=None, session=None, exit_code=0))
+        self.assertEqual(ledger.events, [])
 
 
 if __name__ == "__main__":

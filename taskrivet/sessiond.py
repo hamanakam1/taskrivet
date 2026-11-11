@@ -4,7 +4,8 @@ Speaks the desktop service's protocol: newline-delimited JSON over a per-ledger
 Unix socket in a mode-0700 folder, a mode-0600 handshake token, and the
 operations list, create, write, resize, stop and remove, with terminal:data
 and terminal:exit events. This process owns the pseudo-terminals, so clients
-may disconnect and reattach freely. Terminal state lives in memory only.
+may disconnect and reattach freely. Terminal state lives in memory only; a
+reported terminal exit is recorded in the ledger as a session.exited event.
 """
 from __future__ import annotations
 
@@ -130,9 +131,10 @@ class Client:
 
 
 class Service:
-    def __init__(self, directory: str | Path, token: str) -> None:
+    def __init__(self, directory: str | Path, token: str, ledger: Any = None) -> None:
         self.dir = private_directory(directory)
         self.token = token
+        self.ledger = ledger
         self.socket_path = str(self.dir / "sessions.sock")
         self.selector = selectors.DefaultSelector()
         self.terminals: dict[str, Terminal] = {}
@@ -314,6 +316,19 @@ class Service:
             total += len(data)
             t.pending += t.decoder.decode(data)
 
+    def _report(self, t: Terminal) -> None:
+        """Report terminal attempt state into the ledger so a dead terminal is visible there."""
+        if self.ledger is None or not t.task:
+            return
+        attempt_id = None
+        if t.session:
+            row = self.ledger.db.execute(
+                "SELECT id FROM attempts WHERE session_id=? ORDER BY started DESC LIMIT 1",
+                (t.session,),
+            ).fetchone()
+            attempt_id = row["id"] if row is not None else None
+        self.ledger.event("session.exited", t.task, session=t.session, attempt_id=attempt_id, exit_code=t.exit_code)
+
     def _reap(self, t: Terminal) -> None:
         try:
             pid, status = os.waitpid(t.pid, os.WNOHANG)
@@ -332,6 +347,7 @@ class Service:
         t.fd = None
         t.inbox.clear()
         self._broadcast("terminal:exit", {"id": t.id, "exitCode": t.exit_code})
+        self._report(t)
 
     def _hangup(self, t: Terminal) -> None:
         try:
