@@ -83,6 +83,21 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(evidence['action'], 'evidence')
         self.assertEqual(len(self.l.receipts(attempt['id'])), 2)
 
+    def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
+        started = self.l.start('a', 'worker')
+        attempt_id = started['attempt_id']
+        started_events = [e for e in self.l.events() if e["type"] == "session.started"]
+        self.assertEqual(len(started_events), 1)
+        self.assertEqual(started_events[0]["attempt_id"], attempt_id)
+        self.l.event("task.updated", 'a', source_revision=7, note="bump")
+        updated = [e for e in self.l.events() if e["type"] == "task.updated"]
+        self.assertEqual(len(updated), 1)
+        self.assertEqual(updated[0]["source_revision"], 7)
+        self.l.record("agent.launched", 'a', tool="codex", terminal="t-1", session=started['session_id'])
+        self.l.record("agent.launched", 'a', tool="codex", terminal="t-1", session=started['session_id'])
+        launches = [e for e in self.l.events() if e["type"] == "agent.launched"]
+        self.assertEqual(len(launches), 1)
+
     def test_accept_requires_finished_session(self):
         with self.assertRaises(Conflict): self.l.decide('a', 'accept', 'looks fine')
         sid = self.start()

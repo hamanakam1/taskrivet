@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -73,8 +73,8 @@ class Ledger:
             id TEXT PRIMARY KEY, kinds TEXT NOT NULL, context_limit INTEGER NOT NULL,
             cost TEXT NOT NULL, verified_until REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS events (
-            seq INTEGER PRIMARY KEY, type TEXT NOT NULL, task_id TEXT,
-            data TEXT NOT NULL, created REAL NOT NULL);
+            seq INTEGER PRIMARY KEY, type TEXT NOT NULL, task_id TEXT, key TEXT NOT NULL DEFAULT '',
+            attempt_id TEXT, source_revision INTEGER, data TEXT NOT NULL, created REAL NOT NULL);
         """)
         self._migrate()
 
@@ -116,7 +116,7 @@ class Ledger:
                 action TEXT NOT NULL, key TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'recorded',
                 detail TEXT, created REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS receipts_attempt ON receipts(attempt_id, created);
-            PRAGMA user_version=4;
+            PRAGMA user_version=5;
             COMMIT;
             """)
             existing = {row[1] for row in self.db.execute("PRAGMA table_info(sessions)").fetchall()}
@@ -124,7 +124,14 @@ class Ledger:
                 self.db.execute("ALTER TABLE sessions ADD COLUMN lease_token TEXT NOT NULL DEFAULT ''")
             if "token_seq" not in existing:
                 self.db.execute("ALTER TABLE sessions ADD COLUMN token_seq INTEGER NOT NULL DEFAULT 0")
-            self.db.execute("PRAGMA user_version=4")
+            event_columns = {row[1] for row in self.db.execute("PRAGMA table_info(events)").fetchall()}
+            if "key" not in event_columns:
+                self.db.execute("ALTER TABLE events ADD COLUMN key TEXT NOT NULL DEFAULT ''")
+            if "attempt_id" not in event_columns:
+                self.db.execute("ALTER TABLE events ADD COLUMN attempt_id TEXT")
+            if "source_revision" not in event_columns:
+                self.db.execute("ALTER TABLE events ADD COLUMN source_revision INTEGER")
+            self.db.execute("PRAGMA user_version=5")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -147,9 +154,14 @@ class Ledger:
             raise
 
     def event(self, kind: str, task: str, **data: Any) -> None:
+        """Append one ledger event; replays of the same task, kind, and payload are ignored."""
+        required(kind, "event type")
+        key = hashlib.sha256(f"{task}:{kind}:{json.dumps(data, sort_keys=True)}".encode()).hexdigest()[:20]
+        if self.db.execute("SELECT 1 FROM events WHERE key=?", (key,)).fetchone() is not None:
+            return
         self.db.execute(
-            "INSERT INTO events(type,task_id,data,created) VALUES (?,?,?,?)",
-            (kind, task, json.dumps(data, sort_keys=True), time.time())
+            "INSERT INTO events(key,type,task_id,attempt_id,source_revision,data,created) VALUES (?,?,?,?,?,?,?)",
+            (key, kind, task, data.get("attempt_id"), data.get("source_revision"), json.dumps(data, sort_keys=True), time.time())
         )
 
     def task(self, task_id: str) -> dict[str, Any]:
