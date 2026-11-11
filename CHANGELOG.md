@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Move the local coordination ledger to schema v5 with an attempts table,
+  lease fencing tokens, durable idempotent receipts, and an event feed that
+  carries attempt ids and source revisions.
+- Fence session mutations with lease tokens: checkpoints, failures, and
+  finishes refuse stale tokens, and the supervised work loop and the CLI
+  thread the token issued by `start`.
+- Render ledger attempts and receipts in the desktop session inspector, and
+  refresh the workspace screenshots.
+
+Recorded usage and evidence stay reported, not measured; nothing here
+authorizes execution.
+
 ## 0.5.1 — 2026-10-26
 
 - Introduce the riveted-R identity with editable light, dark and monochrome logos,
