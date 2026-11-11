@@ -202,6 +202,18 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(len(self.l.events()), before)
         self.assertEqual(self.l.task('a')['status'], 'ready')
 
+    def test_cli_refuses_stale_lease_token(self):
+        cmd = [sys.executable, '-m', 'taskrivet', '--db', str(self.path)]
+        started = subprocess.run(cmd + ['start', 'a', '--owner', 'worker'], capture_output=True)
+        payload = json.loads(started.stdout)
+        token = payload['lease_token']
+        sid = payload['session_id']
+        ok = subprocess.run(cmd + ['checkpoint', sid, '--summary', 'progress', '--evidence', 'diff:1', '--next', 'review', '--tokens', '10', '--lease-token', token], capture_output=True)
+        self.assertEqual(ok.returncode, 0)
+        stale = subprocess.run(cmd + ['checkpoint', sid, '--summary', 'progress', '--evidence', 'diff:2', '--next', 'review', '--tokens', '20', '--lease-token', 'a-999'], capture_output=True)
+        self.assertNotEqual(stale.returncode, 0)
+        self.assertIn('stale lease token', json.loads(stale.stderr)['error'])
+
     def test_cli_packet_matches_budget_and_errors_are_json(self):
         self.l.add_context('a', '界 context', 'test')
         cmd = [sys.executable, '-m', 'taskrivet', '--db', str(self.path)]

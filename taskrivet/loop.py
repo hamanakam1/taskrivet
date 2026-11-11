@@ -301,7 +301,8 @@ def work(
                                token_budget=token_budget)
     task_id = imported["task_id"]
     try:
-        sid = ledger.start(task_id, f"taskrivet-work:{tool}", lease)["session_id"]
+        started = ledger.start(task_id, f"taskrivet-work:{tool}", lease)
+        sid = started["session_id"]
     except Conflict as exc:
         raise Conflict(f"{exc}. Ticket {snap['key']} is bound to task {task_id}; see taskrivet links --ticket"
                        f" {snap['key']}, then attach to its terminal or decide the task (retry, accept, or cancel)."
@@ -327,7 +328,7 @@ def work(
         if isinstance(exc, SessionError):
             summary = "Terminal start outcome unknown: " + summary + " Check taskrivet sessions before retrying."
         try:
-            ledger.fail(sid, "terminal_start", summary)
+            ledger.fail(sid, "terminal_start", summary, lease_token=started["lease_token"])
         except (ValueError, sqlite3.Error):
             pass
         raise
