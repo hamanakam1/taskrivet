@@ -205,8 +205,20 @@ class LedgerTest(unittest.TestCase):
         self.l.db.execute('UPDATE profiles SET verified_until=0 WHERE id=?', ('stale',))
         result = self.l.route('a')
         self.assertFalse(result['execution_authorized'])
-        self.assertEqual([r['profile'] for r in result['options'] if r['eligible']], ['local'])
+        self.assertEqual([r['profile'] for r in result['options'] if r['eligible']], [])
         self.assertTrue(all(r['quality_estimate'] is None for r in result['options']))
+
+    def test_execution_profile_v2_complete_profile_is_eligible(self):
+        self.l.profile('v2-local', ['code'], 8000, 'zero_incremental', tool='codex', account='owner', environment='macos-arm64', version='0.5.1', entitlement='pro', freshness_seconds=3600)
+        result = self.l.route('a')
+        self.assertEqual([r['profile'] for r in result['options'] if r['eligible']], ['v2-local'])
+        self.assertFalse(result['execution_authorized'])
+
+    def test_execution_profile_v2_expired_profile_is_not_eligible(self):
+        self.l.profile('v2-local', ['code'], 8000, 'zero_incremental', tool='codex', account='owner', environment='macos-arm64', version='0.5.1', entitlement='pro', freshness_seconds=1)
+        self.l.db.execute('UPDATE profiles SET freshness_until=0 WHERE id=?', ('v2-local',))
+        result = self.l.route('a')
+        self.assertEqual([r['profile'] for r in result['options'] if r['eligible']], [])
 
     def test_failure_recurrence_and_event_cursor(self):
         for _ in range(2):

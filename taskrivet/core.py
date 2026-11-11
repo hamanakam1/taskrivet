@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -71,7 +71,7 @@ class Ledger:
             fingerprint TEXT NOT NULL, summary TEXT NOT NULL, created REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS profiles (
             id TEXT PRIMARY KEY, kinds TEXT NOT NULL, context_limit INTEGER NOT NULL,
-            cost TEXT NOT NULL, verified_until REAL NOT NULL);
+            cost TEXT NOT NULL, verified_until REAL NOT NULL, tool TEXT, account TEXT, environment TEXT, version TEXT, entitlement TEXT, freshness_until REAL);
         CREATE TABLE IF NOT EXISTS events (
             seq INTEGER PRIMARY KEY, type TEXT NOT NULL, task_id TEXT, key TEXT NOT NULL DEFAULT '',
             attempt_id TEXT, source_revision INTEGER, data TEXT NOT NULL, created REAL NOT NULL);
@@ -131,7 +131,20 @@ class Ledger:
                 self.db.execute("ALTER TABLE events ADD COLUMN attempt_id TEXT")
             if "source_revision" not in event_columns:
                 self.db.execute("ALTER TABLE events ADD COLUMN source_revision INTEGER")
-            self.db.execute("PRAGMA user_version=5")
+            profile_columns = {row[1] for row in self.db.execute("PRAGMA table_info(profiles)").fetchall()}
+            if "tool" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN tool TEXT")
+            if "account" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN account TEXT")
+            if "environment" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN environment TEXT")
+            if "version" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN version TEXT")
+            if "entitlement" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN entitlement TEXT")
+            if "freshness_until" not in profile_columns:
+                self.db.execute("ALTER TABLE profiles ADD COLUMN freshness_until REAL")
+            self.db.execute("PRAGMA user_version=6")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -530,6 +543,12 @@ class Ledger:
         context_limit: int,
         cost: str,
         ttl: int = 3600,
+        tool: str | None = None,
+        account: str | None = None,
+        environment: str | None = None,
+        version: str | None = None,
+        entitlement: str | None = None,
+        freshness_seconds: int | None = None,
     ) -> dict[str, str]:
         required(profile_id, "profile id")
         positive(context_limit, "context_limit")
@@ -540,12 +559,15 @@ class Ledger:
             raise ValueError("at least one task kind is required")
         for kind in kinds:
             required(kind, "kind")
+        attested = all((tool, account, environment, version, entitlement))
+        freshness_until = time.time() + (freshness_seconds if freshness_seconds is not None else ttl)
         with self.transaction():
             self.db.execute(
-                "INSERT INTO profiles VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kinds=excluded.kinds,context_limit=excluded.context_limit,cost=excluded.cost,verified_until=excluded.verified_until",
-                (profile_id, json.dumps(kinds), context_limit, cost, time.time() + ttl)
+                "INSERT INTO profiles(id,kinds,context_limit,cost,verified_until,tool,account,environment,version,entitlement,freshness_until) VALUES (?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(id) DO UPDATE SET kinds=excluded.kinds,context_limit=excluded.context_limit,cost=excluded.cost,verified_until=excluded.verified_until,tool=excluded.tool,account=excluded.account,environment=excluded.environment,version=excluded.version,entitlement=excluded.entitlement,freshness_until=excluded.freshness_until",
+                (profile_id, json.dumps(kinds), context_limit, cost, time.time() + ttl, tool, account, environment, version, entitlement, freshness_until),
             )
-            self.event("profile.declared", None, profile=profile_id, cost=cost)
+            self.event("profile.declared", None, profile=profile_id, cost=cost, attested=attested)
         return {"profile": profile_id, "provenance": "operator declaration; not provider verification"}
 
     def route(self, task_id: str, required_context: int = 4096) -> dict[str, Any]:
@@ -560,7 +582,10 @@ class Ledger:
                 reasons.append("insufficient declared context capacity")
             if row["cost"] != "zero_incremental":
                 reasons.append("new spending is not authorized or cost is unknown")
-            if row["verified_until"] <= time.time():
+            attested = all((row["tool"], row["account"], row["environment"], row["version"], row["entitlement"]))
+            if not attested:
+                reasons.append("profile declaration is incomplete (v1 name-based)")
+            elif row["freshness_until"] is None or row["freshness_until"] <= time.time():
                 reasons.append("profile declaration expired")
             options.append({
                 "profile": row["id"],
