@@ -202,6 +202,20 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(intel['clusters'][0]['recovery'], RECOVERY_PLAYBOOKS['tool'])
         self.assertEqual(intel['categories'], ['tool'])
 
+    def test_repair_economics_preserve_cost_across_retries(self):
+        first = self.l.start('a', 'worker')
+        first_attempt = first['attempt_id']
+        self.l.checkpoint(first['session_id'], 'progress', 'diff:1', 'review', 60)
+        self.l.fail(first['session_id'], 'tool', 'Missing compiler')
+        self.l.decide('a', 'retry', 'compiler fixed')
+        second = self.l.start('a', 'worker')
+        self.assertNotEqual(first_attempt, second['attempt_id'])
+        attempts = self.l.db.execute("SELECT * FROM attempts WHERE task_id=? ORDER BY created", ('a',)).fetchall()
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(int(attempts[0]['tokens']), 60)
+        self.assertEqual(int(attempts[1]['tokens']), 0)
+        self.assertEqual(self.l.task('a')['token_budget'], 100)
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']
