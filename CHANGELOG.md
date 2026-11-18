@@ -10,6 +10,20 @@
   thread the token issued by `start`.
 - Render ledger attempts and receipts in the desktop session inspector, and
   refresh the workspace screenshots.
+- Require attested execution profiles for qualified execution; v1 name-based
+  declarations read as incomplete instead of eligible.
+- Record scoped access grants with request and refusal outcomes.
+- Capture attempt outcomes with rejection reason and repair work, and rank
+  eligible profiles by measured cohort outcome with a Wilson uncertainty
+  interval and cold-start escalation; no model-generated quality estimate
+  enters the ranking.
+- Add task cohorts for held-out measurement.
+- Measure a cohort baseline before any savings claim; savings stay null until a
+  baseline-plus-candidate comparison exists.
+- Move the local coordination ledger to schema v9 with attested execution
+  profiles, scoped access grants, accepted-or-rejected attempt outcomes with
+  repair work, task cohorts, measured cohort ranking, and a baseline-first
+  measurement harness.
 
 Recorded usage and evidence stay reported, not measured; nothing here
 authorizes execution.
