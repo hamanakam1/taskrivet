@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -122,7 +122,13 @@ class Ledger:
                 credential_handles TEXT, expiry REAL, approval_required INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'requested', created REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS grants_task ON grants(task_id, created);
-            PRAGMA user_version=7;
+            CREATE TABLE IF NOT EXISTS cohorts (
+                id TEXT PRIMARY KEY, label TEXT NOT NULL, held_out INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS task_cohorts (
+                task_id TEXT NOT NULL REFERENCES tasks(id), cohort_id TEXT NOT NULL REFERENCES cohorts(id),
+                PRIMARY KEY(task_id, cohort_id));
+            CREATE INDEX IF NOT EXISTS task_cohorts_cohort ON task_cohorts(cohort_id);
+            PRAGMA user_version=9;
             COMMIT;
             """)
             existing = {row[1] for row in self.db.execute("PRAGMA table_info(sessions)").fetchall()}
@@ -163,7 +169,7 @@ class Ledger:
                 self.db.execute("ALTER TABLE attempts ADD COLUMN cash_cost REAL NOT NULL DEFAULT 0.0")
             if "cost_provenance" not in attempt_columns:
                 self.db.execute("ALTER TABLE attempts ADD COLUMN cost_provenance TEXT NOT NULL DEFAULT 'unknown'")
-            self.db.execute("PRAGMA user_version=8")
+            self.db.execute("PRAGMA user_version=9")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -513,6 +519,28 @@ class Ledger:
             dict(r)
             for r in self.db.execute("SELECT * FROM grants WHERE task_id=? ORDER BY created", (task_id,))
         ]
+
+    def create_cohort(self, label: str, held_out: bool = False) -> str:
+        required(label, "cohort label")
+        cohort_id = f"{label[:60]}-held" if held_out else label[:64]
+        with self.transaction():
+            self.db.execute(
+                "INSERT INTO cohorts(id,label,held_out,created) VALUES (?,?,?,?)",
+                (cohort_id, label, int(held_out), time.time()),
+            )
+            self.event("cohort.created", None, cohort=cohort_id, label=label, held_out=int(held_out))
+        return cohort_id
+
+    def assign_cohort(self, task_id: str, cohort_id: str) -> None:
+        required(task_id, "task id")
+        required(cohort_id, "cohort id")
+        with self.transaction():
+            self.task(task_id)
+            self.db.execute("INSERT INTO task_cohorts(task_id,cohort_id) VALUES (?,?)", (task_id, cohort_id))
+
+    def task_cohorts(self, task_id: str) -> list[dict[str, Any]]:
+        required(task_id, "task id")
+        return [dict(r) for r in self.db.execute("SELECT * FROM task_cohorts WHERE task_id=? ORDER BY cohort_id", (task_id,))]
 
     def add_context(
         self,

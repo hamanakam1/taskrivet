@@ -92,6 +92,14 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(refused['status'], 'refused')
         self.assertEqual(len(self.l.grants('a')), 2)
 
+    def test_cohorts_assign_tasks_and_list_them(self):
+        cohort_id = self.l.create_cohort('cold-start-baseline')
+        self.l.assign_cohort('a', cohort_id)
+        self.assertEqual([r['cohort_id'] for r in self.l.task_cohorts('a')], [cohort_id])
+        held = self.l.create_cohort('held-out-set', held_out=True)
+        self.l.assign_cohort('a', held)
+        self.assertEqual(len(self.l.task_cohorts('a')), 2)
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']
