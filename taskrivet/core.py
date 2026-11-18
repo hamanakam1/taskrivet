@@ -48,7 +48,7 @@ def _wilson_interval(accepted: int, attempts: int, z: float = 1.96) -> tuple[flo
 
 
 class Ledger:
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, max_concurrent: int | None = None) -> None:
         path = Path(path).expanduser()
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.db = sqlite3.connect(path, timeout=10, isolation_level=None)
@@ -56,6 +56,9 @@ class Ledger:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA journal_mode=WAL")
+        self.max_concurrent = max_concurrent
+        if max_concurrent is not None:
+            positive(max_concurrent, "max_concurrent")
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY, objective TEXT NOT NULL, acceptance TEXT NOT NULL,
@@ -292,6 +295,10 @@ class Ledger:
         required(tool_profile, "tool profile")
         positive(lease_seconds, "lease_seconds")
         self.reconcile()
+        if self.max_concurrent is not None:
+            active = int(self.db.execute("SELECT COUNT(*) AS n FROM sessions WHERE status='active'").fetchone()["n"])
+            if active >= self.max_concurrent:
+                raise Conflict("global concurrency budget exhausted")
         with self.transaction():
             task = self.task(task_id)
             if task["status"] != "ready":

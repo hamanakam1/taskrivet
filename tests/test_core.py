@@ -162,6 +162,30 @@ class LedgerTest(unittest.TestCase):
     def test_measurement_requires_known_cohort(self):
         with self.assertRaises(ValueError): self.l.measurement('no-such-cohort')
 
+    def test_global_concurrency_budget_is_enforced(self):
+        ledger = Ledger(self.path, max_concurrent=1)
+        try:
+            first = ledger.start('a', 'worker')
+            ledger.add_task('b', 'Second change', 'Pass', scope=['repo/other'], token_budget=100)
+            with self.assertRaises(Conflict): ledger.start('b', 'worker')
+            ledger.checkpoint(first['session_id'], 'progress', 'diff:1', 'review', 10)
+            ledger.finish(first['session_id'], 'tests pass')
+            ledger.decide('a', 'accept', 'Reviewed')
+            second = ledger.start('b', 'worker')
+            self.assertNotEqual(first['session_id'], second['session_id'])
+        finally:
+            ledger.close()
+
+    def test_global_concurrency_budget_is_configurable(self):
+        ledger = Ledger(self.path, max_concurrent=2)
+        try:
+            ledger.add_task('b', 'Second change', 'Pass', scope=['repo/other'], token_budget=100)
+            first = ledger.start('a', 'worker')
+            second = ledger.start('b', 'worker')
+            self.assertEqual(len({first['session_id'], second['session_id']}), 2)
+        finally:
+            ledger.close()
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']
