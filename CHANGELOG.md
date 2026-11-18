@@ -24,6 +24,10 @@
   profiles, scoped access grants, accepted-or-rejected attempt outcomes with
   repair work, task cohorts, measured cohort ranking, and a baseline-first
   measurement harness.
+- Enforce a configurable global concurrency budget on task starts, on top of the
+  existing per-scope reservation refusal.
+- Cluster recorded failures by fingerprint, alert on recurrence, and map
+  categories to bounded recovery playbooks.
 
 Recorded usage and evidence stay reported, not measured; nothing here
 authorizes execution.
