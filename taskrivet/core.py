@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import hashlib
 import json
+from math import sqrt
 from pathlib import Path
 import re
 import sqlite3
@@ -32,6 +33,18 @@ def required(value: Any, name: str) -> None:
 
 def _slug(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:100] or "ticket"
+
+
+def _wilson_interval(accepted: int, attempts: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for an acceptance rate; the uncertainty is stated, not assumed."""
+    if attempts <= 0:
+        return (0.0, 0.0)
+    p = accepted / attempts
+    z2 = z * z
+    denominator = 1 + z2 / attempts
+    center = (p + z2 / (2 * attempts)) / denominator
+    margin = (z / denominator) * sqrt(p * (1 - p) / attempts + z2 / (4 * attempts * attempts))
+    return (round(max(0.0, center - margin), 6), round(min(1.0, center + margin), 6))
 
 
 class Ledger:
@@ -274,8 +287,9 @@ class Ledger:
         with self.transaction():
             self._expire()
 
-    def start(self, task_id: str, owner: str, lease_seconds: int = 900) -> dict[str, Any]:
+    def start(self, task_id: str, owner: str, lease_seconds: int = 900, tool_profile: str = "unassigned") -> dict[str, Any]:
         required(owner, "owner")
+        required(tool_profile, "tool profile")
         positive(lease_seconds, "lease_seconds")
         self.reconcile()
         with self.transaction():
@@ -309,7 +323,7 @@ class Ledger:
             )
             self.db.execute(
                 "INSERT INTO attempts(id,task_id,session_id,tool_profile,environment_fingerprint,started,outcome,receipt_references,tokens,created) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (attempt_id, task_id, sid, "unassigned", hashlib.sha256(task_id.encode()).hexdigest()[:16], now, "running", "[]", 0, now)
+                (attempt_id, task_id, sid, tool_profile, hashlib.sha256(task_id.encode()).hexdigest()[:16], now, "running", "[]", 0, now)
             )
             self.db.execute("UPDATE tasks SET status='running' WHERE id=?", (task_id,))
             self.receipt(attempt_id, task_id, "claim", f"{attempt_id}:claim", status="claimed")
@@ -649,9 +663,39 @@ class Ledger:
             self.event("profile.declared", None, profile=profile_id, cost=cost, attested=attested)
         return {"profile": profile_id, "provenance": "operator declaration; not provider verification"}
 
+    def _cohort_stats(self, task_id: str) -> dict[str, dict[str, Any]]:
+        cohorts = self.task_cohorts(task_id)
+        cohort_ids = [c["cohort_id"] for c in cohorts]
+        stats: dict[str, dict[str, Any]] = {}
+        if not cohort_ids:
+            return stats
+        placeholders = ",".join("?" for _ in cohort_ids)
+        query = (
+            "SELECT a.tool_profile AS profile, COUNT(*) AS attempts, "
+            "COALESCE(SUM(CASE WHEN a.outcome='accepted' THEN 1 ELSE 0 END),0) AS accepted, "
+            "COALESCE(SUM(CASE WHEN a.outcome='accepted' THEN a.tokens ELSE 0 END),0) AS accepted_tokens, "
+            "COALESCE(SUM(a.tokens),0) AS tokens "
+            "FROM attempts a JOIN task_cohorts tc ON tc.task_id=a.task_id "
+            f"WHERE tc.cohort_id IN ({placeholders}) GROUP BY a.tool_profile"
+        )
+        for row in self.db.execute(query, cohort_ids).fetchall():
+            attempts = int(row["attempts"])
+            accepted = int(row["accepted"])
+            total_tokens = float(row["tokens"])
+            stats[str(row["profile"])] = {
+                "measured": accepted > 0,
+                "escalate": accepted <= 0,
+                "score": (float(row["accepted_tokens"]) / total_tokens) if total_tokens > 0 else 0.0,
+                "ci": _wilson_interval(accepted, attempts),
+                "attempts": attempts,
+                "accepted": accepted,
+            }
+        return stats
+
     def route(self, task_id: str, required_context: int = 4096) -> dict[str, Any]:
         positive(required_context, "required_context")
         task = self.task(task_id)
+        stats = self._cohort_stats(task_id)
         options: list[dict[str, Any]] = []
         for row in self.db.execute("SELECT * FROM profiles ORDER BY id"):
             reasons: list[str] = []
@@ -666,17 +710,44 @@ class Ledger:
                 reasons.append("profile declaration is incomplete (v1 name-based)")
             elif row["freshness_until"] is None or row["freshness_until"] <= time.time():
                 reasons.append("profile declaration expired")
-            options.append({
+            entry: dict[str, Any] = {
                 "profile": row["id"],
                 "eligible": not reasons,
                 "reasons": reasons,
                 "quality_estimate": None,
                 "provenance": "operator declaration",
-            })
+            }
+            if not reasons:
+                group = stats.get(row["id"])
+                if group is None or group["escalate"]:
+                    entry["measured"] = False
+                    entry["escalate"] = True
+                    entry["score"] = None
+                    entry["ci"] = None
+                else:
+                    entry["measured"] = True
+                    entry["escalate"] = False
+                    entry["score"] = group["score"]
+                    entry["ci"] = group["ci"]
+            options.append(entry)
+        eligible = [o for o in options if o["eligible"]]
+        ranked = sorted(
+            [o for o in eligible if o.get("measured") and not o.get("escalate")],
+            key=lambda o: (-(o["score"] or 0.0), o["profile"]),
+        )
+        if ranked:
+            recommendation = (
+                f"Ranked by measured accepted outcomes per unit of total effort within cohort; "
+                f"best profile {ranked[0]['profile']}."
+            )
+        elif eligible:
+            recommendation = "Eligible options need outcome evidence; escalate to operator."
+        else:
+            recommendation = "No eligible execution profile; escalate to operator."
         return {
             "task_id": task_id,
             "options": options,
-            "recommendation": "Eligible options are unranked until outcome evidence exists.",
+            "recommendation": recommendation,
             "execution_authorized": False,
         }
 

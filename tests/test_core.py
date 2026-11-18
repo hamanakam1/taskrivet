@@ -100,6 +100,42 @@ class LedgerTest(unittest.TestCase):
         self.l.assign_cohort('a', held)
         self.assertEqual(len(self.l.task_cohorts('a')), 2)
 
+    def test_routing_ranks_measured_cohort_outcome(self):
+        alpha_cohort = self.l.create_cohort('alpha-set')
+        self.l.assign_cohort('a', alpha_cohort)
+        self.l.profile('v2-alpha', ['code'], 8000, 'zero_incremental', tool='codex', account='owner', environment='macos-arm64', version='0.5.1', entitlement='pro', freshness_seconds=3600)
+        first = self.l.start('a', 'worker', tool_profile='v2-alpha')
+        sid = first['session_id']
+        self.l.checkpoint(sid, 'step', f"evidence {first['attempt_id']}", 'finish', 30, lease_token=first['lease_token'])
+        self.l.fail(sid, 'tool', 'Missing compiler', lease_token=first['lease_token'])
+        self.l.decide('a', 'retry', 'compiler fixed')
+        second = self.l.start('a', 'worker', tool_profile='v2-alpha')
+        sid = second['session_id']
+        self.l.checkpoint(sid, 'step', f"evidence {second['attempt_id']}", 'finish', 10, lease_token=second['lease_token'])
+        self.l.finish(sid, 'tests pass', lease_token=second['lease_token'])
+        self.l.decide('a', 'accept', 'Reviewed')
+        result = self.l.route('a')
+        self.assertFalse(result['execution_authorized'])
+        eligible = [o for o in result['options'] if o['eligible']]
+        self.assertEqual([o['profile'] for o in eligible], ['v2-alpha'])
+        self.assertTrue(eligible[0]['measured'])
+        self.assertFalse(eligible[0]['escalate'])
+        self.assertEqual(eligible[0]['score'], 10 / 40)
+        self.assertTrue(eligible[0]['ci'][0] <= eligible[0]['score'] <= eligible[0]['ci'][1])
+        self.assertIsNone(eligible[0]['quality_estimate'])
+        self.assertEqual(result['recommendation'], 'Ranked by measured accepted outcomes per unit of total effort within cohort; best profile v2-alpha.')
+
+    def test_routing_escalates_cold_start_without_outcome_evidence(self):
+        self.l.profile('v2-cold', ['code'], 8000, 'zero_incremental', tool='codex', account='owner', environment='macos-arm64', version='0.5.1', entitlement='pro', freshness_seconds=3600)
+        result = self.l.route('a')
+        eligible = [o for o in result['options'] if o['eligible']]
+        self.assertEqual([o['profile'] for o in eligible], ['v2-cold'])
+        self.assertFalse(eligible[0]['measured'])
+        self.assertTrue(eligible[0]['escalate'])
+        self.assertIsNone(eligible[0]['score'])
+        self.assertIsNone(eligible[0]['ci'])
+        self.assertIn('escalate', result['recommendation'])
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']
