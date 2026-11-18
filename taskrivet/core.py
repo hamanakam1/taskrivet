@@ -19,6 +19,13 @@ class Conflict(ValueError):
 
 SCHEMA_VERSION = 9
 OPEN_STATES = ("ready", "running", "blocked", "review")
+RECOVERY_PLAYBOOKS = {
+    "tool": "Re-verify tool installation and credentials before retrying.",
+    "lease_expired": "Re-lease to a fresh worker session.",
+    "no_progress": "Change the approach; vary the cited evidence.",
+    "budget": "Shrink task scope or raise the token budget.",
+    "environment": "Re-probe the execution environment fingerprint.",
+}
 
 
 def positive(value: Any, name: str) -> None:
@@ -792,6 +799,31 @@ class Ledger:
             "options": options,
             "recommendation": recommendation,
             "execution_authorized": False,
+        }
+
+    def failure_intelligence(self) -> dict[str, Any]:
+        """Cluster recorded failures by root cause and surface bounded recovery guidance."""
+        rows = self.db.execute(
+            "SELECT fingerprint,category,summary,COUNT(*) AS occurrences FROM failures GROUP BY fingerprint,category,summary ORDER BY occurrences DESC"
+        ).fetchall()
+        clusters: list[dict[str, Any]] = []
+        for row in rows:
+            fingerprint = str(row["fingerprint"])
+            category = str(row["category"])
+            summary = str(row["summary"])
+            occurrences = int(row["occurrences"])
+            clusters.append({
+                "fingerprint": fingerprint,
+                "category": category,
+                "summary": summary,
+                "occurrences": occurrences,
+                "recurring": occurrences > 1,
+                "recovery": RECOVERY_PLAYBOOKS.get(category, "Operator review required"),
+            })
+        return {
+            "clusters": clusters,
+            "recurring_count": sum(1 for c in clusters if c["recurring"]),
+            "categories": sorted({c["category"] for c in clusters}),
         }
 
     def status(self) -> dict[str, Any]:

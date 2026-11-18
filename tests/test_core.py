@@ -6,7 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
-from taskrivet.core import Conflict, Ledger
+from taskrivet.core import Conflict, Ledger, RECOVERY_PLAYBOOKS
 
 
 class LedgerTest(unittest.TestCase):
@@ -185,6 +185,22 @@ class LedgerTest(unittest.TestCase):
             self.assertEqual(len({first['session_id'], second['session_id']}), 2)
         finally:
             ledger.close()
+
+    def test_failure_intelligence_clusters_and_alerts_recurrence(self):
+        first = self.l.start('a', 'worker')
+        self.l.checkpoint(first['session_id'], 'progress', 'diff:1', 'review', 10)
+        self.l.fail(first['session_id'], 'tool', 'Missing compiler')
+        self.l.decide('a', 'retry', 'compiler fixed')
+        second = self.l.start('a', 'worker')
+        self.l.checkpoint(second['session_id'], 'progress', 'diff:2', 'review', 10)
+        self.l.fail(second['session_id'], 'tool', 'Missing compiler')
+        intel = self.l.failure_intelligence()
+        self.assertEqual(len(intel['clusters']), 1)
+        self.assertEqual(intel['clusters'][0]['occurrences'], 2)
+        self.assertTrue(intel['clusters'][0]['recurring'])
+        self.assertEqual(intel['recurring_count'], 1)
+        self.assertEqual(intel['clusters'][0]['recovery'], RECOVERY_PLAYBOOKS['tool'])
+        self.assertEqual(intel['categories'], ['tool'])
 
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
