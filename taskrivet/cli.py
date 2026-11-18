@@ -62,6 +62,7 @@ def parser():
     c.add_argument('--context-limit', type=int, required=True); c.add_argument('--cost', choices=['zero_incremental','paid','unknown'], required=True)
     c.add_argument('--ttl', type=int, default=3600)
     c = add('route'); c.add_argument('task'); c.add_argument('--required-context', type=int, default=4096)
+    m = add('measurement'); m.add_argument('cohort')
 
     from .loop import DEFAULT_LEASE
     from .tickets import KINDS
@@ -343,6 +344,7 @@ def main(argv=None):
                 return
         elif cmd == 'profile-add': result = ledger.profile(a.id, a.kind, a.context_limit, a.cost, a.ttl)
         elif cmd == 'route': result = ledger.route(a.task, a.required_context)
+        elif cmd == 'measurement': result = ledger.measurement(a.cohort)
         elif cmd == 'links':
             from .loop import links_view
             result = links_view(ledger, a.db, a.ticket, a.limit, not a.no_live)

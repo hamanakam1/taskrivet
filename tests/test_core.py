@@ -136,6 +136,32 @@ class LedgerTest(unittest.TestCase):
         self.assertIsNone(eligible[0]['ci'])
         self.assertIn('escalate', result['recommendation'])
 
+    def test_measurement_baseline_comes_before_savings(self):
+        cohort_id = self.l.create_cohort('measured-set')
+        self.l.assign_cohort('a', cohort_id)
+        self.l.profile('v2-alpha', ['code'], 8000, 'zero_incremental', tool='codex', account='owner', environment='macos-arm64', version='0.5.1', entitlement='pro', freshness_seconds=3600)
+        first = self.l.start('a', 'worker', tool_profile='v2-alpha')
+        sid = first['session_id']
+        self.l.checkpoint(sid, 'step', f"evidence {first['attempt_id']}", 'finish', 30, lease_token=first['lease_token'])
+        self.l.fail(sid, 'tool', 'Missing compiler', lease_token=first['lease_token'])
+        self.l.decide('a', 'retry', 'compiler fixed')
+        second = self.l.start('a', 'worker', tool_profile='v2-alpha')
+        sid = second['session_id']
+        self.l.checkpoint(sid, 'step', f"evidence {second['attempt_id']}", 'finish', 10, lease_token=second['lease_token'])
+        self.l.finish(sid, 'tests pass', lease_token=second['lease_token'])
+        self.l.decide('a', 'accept', 'Reviewed')
+        result = self.l.measurement(cohort_id)
+        self.assertEqual(result['cohort'], cohort_id)
+        self.assertEqual(result['task_ids'], ['a'])
+        self.assertEqual(result['sample_size'], 2)
+        self.assertIsNotNone(result['baseline'])
+        self.assertIsNone(result['candidate'])
+        self.assertEqual(result['savings'], None)
+        self.assertTrue(result['baseline']['measured'])
+
+    def test_measurement_requires_known_cohort(self):
+        with self.assertRaises(ValueError): self.l.measurement('no-such-cohort')
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']

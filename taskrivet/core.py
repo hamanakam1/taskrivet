@@ -556,6 +556,42 @@ class Ledger:
         required(task_id, "task id")
         return [dict(r) for r in self.db.execute("SELECT * FROM task_cohorts WHERE task_id=? ORDER BY cohort_id", (task_id,))]
 
+    def measurement(self, cohort_id: str) -> dict[str, Any]:
+        """Measure one cohort: baseline, candidate, sample size, uncertainty.
+
+        The baseline is the best measured profile once accepted outcomes exist;
+        the candidate is the runner-up for comparison. A savings figure is only
+        claimable with a published baseline-plus-candidate comparison, so it
+        stays null until then.
+        """
+        required(cohort_id, "cohort id")
+        cohort = self.db.execute("SELECT * FROM cohorts WHERE id=?", (cohort_id,)).fetchone()
+        if cohort is None:
+            raise ValueError(f"unknown cohort: {cohort_id}")
+        task_ids = [str(r["task_id"]) for r in self.db.execute("SELECT task_id FROM task_cohorts WHERE cohort_id=? ORDER BY task_id", (cohort_id,))]
+        entries: list[dict[str, Any]] = []
+        attempts_total = 0
+        for task_id in task_ids:
+            for profile_id, group in sorted(self._cohort_stats(task_id).items()):
+                entries.append({"task_id": task_id, "profile": profile_id, **group})
+                attempts_total += int(group["attempts"])
+        ranked = sorted(
+            [e for e in entries if e["measured"]],
+            key=lambda e: (-e["score"], e["task_id"], e["profile"]),
+        )
+        baseline = dict(ranked[0]) if ranked else None
+        candidate = dict(ranked[1]) if len(ranked) > 1 else None
+        return {
+            "cohort": cohort_id,
+            "held_out": bool(cohort["held_out"]),
+            "task_ids": task_ids,
+            "entries": entries,
+            "baseline": baseline,
+            "candidate": candidate,
+            "sample_size": attempts_total,
+            "savings": None,
+        }
+
     def add_context(
         self,
         task_id: str,
