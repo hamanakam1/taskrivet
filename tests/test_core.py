@@ -84,6 +84,14 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(len(self.l.receipts(attempt['id'])), 2)
         self.assertTrue(self.l.detail('a')['receipts'])
 
+    def test_scoped_access_grant_records_request_and_refusal(self):
+        grant = self.l.grant('a', repository='owner/taskrivet', fs_scope='repo/taskrivet', operations='execute', credential_handles='env', approval_required=True, status='requested')
+        self.assertEqual(grant['status'], 'requested')
+        self.assertEqual(len(self.l.grants('a')), 1)
+        refused = self.l.grant('a', status='refused')
+        self.assertEqual(refused['status'], 'refused')
+        self.assertEqual(len(self.l.grants('a')), 2)
+
     def test_events_carry_attempt_id_source_revision_and_deduplicate_replays(self):
         started = self.l.start('a', 'worker')
         attempt_id = started['attempt_id']

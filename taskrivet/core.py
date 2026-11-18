@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -116,7 +116,13 @@ class Ledger:
                 action TEXT NOT NULL, key TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'recorded',
                 detail TEXT, created REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS receipts_attempt ON receipts(attempt_id, created);
-            PRAGMA user_version=5;
+            CREATE TABLE IF NOT EXISTS grants (
+                id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+                repository TEXT, worktree TEXT, fs_scope TEXT, network TEXT, operations TEXT,
+                credential_handles TEXT, expiry REAL, approval_required INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'requested', created REAL NOT NULL);
+            CREATE INDEX IF NOT EXISTS grants_task ON grants(task_id, created);
+            PRAGMA user_version=7;
             COMMIT;
             """)
             existing = {row[1] for row in self.db.execute("PRAGMA table_info(sessions)").fetchall()}
@@ -144,7 +150,7 @@ class Ledger:
                 self.db.execute("ALTER TABLE profiles ADD COLUMN entitlement TEXT")
             if "freshness_until" not in profile_columns:
                 self.db.execute("ALTER TABLE profiles ADD COLUMN freshness_until REAL")
-            self.db.execute("PRAGMA user_version=6")
+            self.db.execute("PRAGMA user_version=7")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -461,6 +467,35 @@ class Ledger:
         return [
             dict(r)
             for r in self.db.execute("SELECT * FROM receipts WHERE attempt_id=? ORDER BY created", (attempt_id,))
+        ]
+
+    def grant(
+        self,
+        task_id: str,
+        repository: str | None = None,
+        worktree: str | None = None,
+        fs_scope: str | None = None,
+        network: str | None = None,
+        operations: str | None = None,
+        credential_handles: str | None = None,
+        approval_required: bool = False,
+        status: str = "requested",
+    ) -> dict[str, Any]:
+        required(task_id, "task id")
+        with self.transaction():
+            self.task(task_id)
+            grant_id = task_id if status == "granted" else f"{task_id}-{uuid.uuid4().hex[:8]}"
+            self.db.execute(
+                "INSERT INTO grants(id,task_id,repository,worktree,fs_scope,network,operations,credential_handles,expiry,approval_required,status,created) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                (grant_id, task_id, repository, worktree, fs_scope, network, operations, credential_handles, time.time() + 86400, int(approval_required), status, time.time()),
+            )
+            self.event("operator.grant", task_id, grant=grant_id, status=status, repository=repository, worktree=worktree, fs_scope=fs_scope, network=network, operations=operations, credential_handles=credential_handles)
+        return {"task_id": task_id, "grant": grant_id, "status": status}
+
+    def grants(self, task_id: str) -> list[dict[str, Any]]:
+        return [
+            dict(r)
+            for r in self.db.execute("SELECT * FROM grants WHERE task_id=? ORDER BY created", (task_id,))
         ]
 
     def add_context(
