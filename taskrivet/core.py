@@ -16,7 +16,7 @@ class Conflict(ValueError):
     """An ownership, budget, or lifecycle constraint refused an operation."""
 
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 OPEN_STATES = ("ready", "running", "blocked", "review")
 
 
@@ -150,7 +150,20 @@ class Ledger:
                 self.db.execute("ALTER TABLE profiles ADD COLUMN entitlement TEXT")
             if "freshness_until" not in profile_columns:
                 self.db.execute("ALTER TABLE profiles ADD COLUMN freshness_until REAL")
-            self.db.execute("PRAGMA user_version=7")
+            attempt_columns = {row[1] for row in self.db.execute("PRAGMA table_info(attempts)").fetchall()}
+            if "rejected" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN rejected INTEGER NOT NULL DEFAULT 0")
+            if "rejection_reason" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN rejection_reason TEXT")
+            if "repair_work" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN repair_work TEXT NOT NULL DEFAULT ''")
+            if "review_seconds" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN review_seconds REAL NOT NULL DEFAULT 0.0")
+            if "cash_cost" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN cash_cost REAL NOT NULL DEFAULT 0.0")
+            if "cost_provenance" not in attempt_columns:
+                self.db.execute("ALTER TABLE attempts ADD COLUMN cost_provenance TEXT NOT NULL DEFAULT 'unknown'")
+            self.db.execute("PRAGMA user_version=8")
         except BaseException:
             if self.db.in_transaction:
                 self.db.execute("ROLLBACK")
@@ -367,7 +380,10 @@ class Ledger:
             self.db.execute("UPDATE sessions SET status='failed' WHERE id=?", (sid,))
             self.db.execute("UPDATE tasks SET status='blocked' WHERE id=?", (session["task_id"],))
             self._failure(session["task_id"], sid, category, summary)
-            self.db.execute("UPDATE attempts SET outcome='failed' WHERE session_id=?", (sid,))
+            self.db.execute(
+                "UPDATE attempts SET outcome='failed',rejected=1,rejection_reason=?,repair_work=? WHERE session_id=?",
+                (category, summary, sid),
+            )
         return {"status": "blocked"}
 
     def finish(self, sid: str, evidence: str, lease_token: str | None = None) -> dict[str, str]:
@@ -402,9 +418,9 @@ class Ledger:
                 raise Conflict(f"cannot {decision} a {task['status']} task")
             status = {"accept": "accepted", "retry": "ready", "cancel": "cancelled"}[decision]
             self.db.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
-            if decision == "accept": self.db.execute("UPDATE attempts SET outcome='accepted' WHERE task_id=? AND outcome='review'", (task_id,))
-            if decision == "cancel": self.db.execute("UPDATE attempts SET outcome='cancelled' WHERE task_id=? AND outcome IN ('blocked','review','paused')", (task_id,))
-            if decision == "retry": self.db.execute("UPDATE attempts SET outcome='retry' WHERE task_id=? AND outcome IN ('failed','blocked','review','paused')", (task_id,))
+            if decision == "accept": self.db.execute("UPDATE attempts SET outcome='accepted',rejected=0 WHERE task_id=? AND outcome='review'", (task_id,))
+            if decision == "cancel": self.db.execute("UPDATE attempts SET outcome='cancelled',rejected=1,rejection_reason=? WHERE task_id=? AND outcome IN ('blocked','review','paused')", ("cancel", task_id,))
+            if decision == "retry": self.db.execute("UPDATE attempts SET outcome='retry',rejected=1,rejection_reason=? WHERE task_id=? AND outcome IN ('failed','blocked','review','paused')", ("retry", task_id,))
             self.event("operator." + decision, task_id, reason=reason)
         return {"status": status}
 
